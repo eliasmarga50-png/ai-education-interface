@@ -1,10 +1,7 @@
-
-
-
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/home/screens/home_screen.dart';
+import 'features/home/screens/main_shell.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +16,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'AI Education Platform',
       theme: AppTheme.lightTheme,
-      home: const HomeScreen(),
+      home: const MainShell(),
     );
   }
 }
