@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../courses/screens/courses_screen.dart';
 
 import 'home_screen.dart';
 
@@ -13,20 +14,17 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    HomeScreen(),
-    _PlaceholderScreen(
-      title: 'Courses',
-      icon: Icons.menu_book_outlined,
-    ),
-    _PlaceholderScreen(
-      title: 'AI Tutor',
-      icon: Icons.smart_toy_outlined,
-    ),
-    _PlaceholderScreen(
-      title: 'Profile',
-      icon: Icons.person_outline,
-    ),
-  ];
+  HomeScreen(),
+  CoursesScreen(),
+  _PlaceholderScreen(
+    title: 'AI Tutor',
+    icon: Icons.smart_toy_outlined,
+  ),
+  _PlaceholderScreen(
+    title: 'Profile',
+    icon: Icons.person_outline,
+  ),
+];
 
   void _onNavigationItemTapped(int index) {
     setState(() {
