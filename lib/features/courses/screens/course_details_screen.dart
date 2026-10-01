@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/course.dart';
+import '../../lessons/screens/learning_screen.dart';
 
 class CourseDetailsScreen extends StatelessWidget {
   final Course course;
@@ -115,7 +116,16 @@ class CourseDetailsScreen extends StatelessWidget {
         child: SizedBox(
           height: 54,
           child: FilledButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:(context) => LearningScreen(
+                    course: course,
+                  ),
+                ),
+              );
+            },
             child: const Text(
               'Start Learning',
               style: TextStyle(
