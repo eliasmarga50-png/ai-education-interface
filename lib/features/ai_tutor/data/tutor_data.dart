@@ -10,7 +10,7 @@ class TutorData {
     'Give me a Flutter practice exercise',
   ];
 
-  static const List<ChatMessage> welcomeMessages = [
+  static final List<ChatMessage> welcomeMessages = [
     ChatMessage(
       id: 'welcome-1',
       text:
