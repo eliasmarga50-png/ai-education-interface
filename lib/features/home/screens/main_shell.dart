@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../courses/screens/courses_screen.dart';
-
+import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import 'home_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -16,10 +16,7 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _screens = const [
   HomeScreen(),
   CoursesScreen(),
-  _PlaceholderScreen(
-    title: 'AI Tutor',
-    icon: Icons.smart_toy_outlined,
-  ),
+  AITutorScreen(),
   _PlaceholderScreen(
     title: 'Profile',
     icon: Icons.person_outline,
