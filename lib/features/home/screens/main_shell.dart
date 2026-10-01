@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../courses/screens/courses_screen.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
+import '../../profile/screens/profile_screen.dart';
 import 'home_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -17,10 +18,7 @@ class _MainShellState extends State<MainShell> {
   HomeScreen(),
   CoursesScreen(),
   AITutorScreen(),
-  _PlaceholderScreen(
-    title: 'Profile',
-    icon: Icons.person_outline,
-  ),
+  ProfileScreen(),
 ];
 
   void _onNavigationItemTapped(int index) {
