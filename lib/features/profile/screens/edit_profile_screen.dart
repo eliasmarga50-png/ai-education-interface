@@ -14,7 +14,17 @@ class EditProfileScreen extends StatefulWidget {
     _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen>
+class _EditProfileScreenState extends State<EditProfileScreen> { 
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _bioController;
+
+  final _profileController = ProfileController.instance;
+
+  
+}
 
 
 
