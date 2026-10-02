@@ -34,6 +34,38 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _emailController = TextEditingController(text: profile.email);
 
     _bioController = TextEditingController(text: profile.bio);
+
+    @override 
+    void dispose() {
+      _nameController.dispose();
+      _emailController.dispose();
+      _bioController.dispose();
+      super.dispose();
+    }
+
+    @override
+    void _saveProfile() {
+      if (!_formKey.currentState!.validate()){
+        return;
+      }
+
+      _profileController.updateProfile( 
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        bio: _bioController.text.trim(),
+      );
+
+      ScaffoldMessenger.of(context).ShowSnackBar(const SnackBar(content: Text('Profile updated successfully.'),));
+
+      Navigator.pop(context);
+    }
+
+    @override
+    Widget build(BuildContext context) {
+      return Scaffold(
+
+      );
+    }
   }
 }
 
