@@ -119,6 +119,50 @@ class _PreferencesScreenState
         ),
 
         const SizedBox(height: 24),
+
+        Text(
+          'Preferred Difficulty',
+          style: Theme.of(context)
+             .textTheme
+            .titleMedium,
+        ),
+
+        const SizedBox(height: 10),
+
+        DropdownButtonFormField<String>(
+          initialValue: _difficulty,
+          decoration: const InputDecoration(
+            prefixIcon: icon(
+              Icons.bar_chart_outlined,
+            ),
+            labelText: 'Choose your level',
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: 'Beginner',
+              child: Text('Beginner'),
+              ),
+            DropdownMenuItem(
+              value: 'Intermediate',
+              child: Text('Intermediate'),
+            ),
+
+            DropdownMenuItem(
+              value: 'Advanced',
+              child: Text('Advanced'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value==null){
+              return;
+            }
+            setState(() {
+              _difficulty=value;
+            });
+          },
+        ),
+
+        const SizedBox(height: 10),
           ],
       ),
       );
