@@ -23,7 +23,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   final _profileController = ProfileController.instance;
 
-  
+  @override 
+  void initState() {
+    super.initState();
+
+    final profile = _profileController.profile;
+
+    _nameController = TextEditingController(text: profile.name);
+
+    _emailController = TextEditingController(text: profile.email);
+
+    _bioController = TextEditingController(text: profile.bio);
+  }
 }
 
 
