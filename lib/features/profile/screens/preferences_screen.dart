@@ -162,7 +162,34 @@ class _PreferencesScreenState
           },
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 28),
+
+        const _PreferenceSectionTitle(
+          title: 'Learning Assistance',
+          ),
+
+          const SizedBox(height: 10),
+
+          Card(
+            child: SwitchListTile(
+              value: _aiAssistance,
+              onChanged: (value) {
+                setState(() {
+                  _aiAssistance = value;
+                });
+              },
+              secondary: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme,.primaryColor.withvalues(
+                    alpha: 0.08,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  ),
+                  ,
+                  ),
+            ),)
           ],
       ),
       );
