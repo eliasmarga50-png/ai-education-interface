@@ -49,4 +49,79 @@ class _PreferencesScreenState
     );
 
     Navigator.pop(context);
-  }}
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Preferences'),
+        actions: [
+          Textbutton(
+            onPressed: _savePreferences,
+            child: const Text('save'),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(
+        20, 
+        12, 
+        20, 
+        30,
+        ),
+        children: [
+          const _PreferenceHeader(),
+
+          const sizedBox(height: 28),
+
+          Text(
+            'Learning Goal',
+            style: Theme.of(context)
+               .textTheme
+               .titleMedium,
+          ),
+
+          const SizedBox(height:10),
+
+          DropdownButtonFormField<String>(initialValue: _learningGoal,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(
+              Icons.flag_outlined,
+            ),
+            labelText: 'what do you want to achieve?',
+          ),
+          items: const[
+            DropdownMenuItem(
+              value: 'Improve my skill',
+              child: Text('Improve my Skills'),
+              ),
+              DropdownMenuItem(
+                value: 'prepare for a career',
+                child: Text('prepare for a career',),
+                ),
+              DropdownMenuItem(
+                value: 'prepare for exams',
+                child: Text('prepare for exams',
+                
+                ),
+              ),
+          ],
+          onChanged: (value) {
+            if (value==null) {
+              return;
+            }
+
+            setState(() {
+              _learningGoal= value;
+            });
+          },
+        ),
+
+        const SizedBox(height: 24),
+          ],
+      ),
+      );
+  }
+  
+  }
