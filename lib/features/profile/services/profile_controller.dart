@@ -79,6 +79,36 @@ class ProfileController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateAvatar(String avatarPath) {
+    _profile = UserProfile(
+      name: _profile.name,
+      email: _profile.email,
+      bio: _profile.bio,
+      avatarUrl: avatarPath,
+      enrolledCourses: _profile.enrolledCourses,
+      completedCourses: _profile.completedCourses,
+      learningHours: _profile.learningHours,
+      currentStreak: _profile.currentStreak,
+    );
+
+    notifyListeners();
+  }
+
+  void removeAvatar() {
+    _profile = UserProfile(
+      name: _profile.name,
+      email: _profile.email,
+      bio: _profile.bio,
+      avatarUrl: '',
+      enrolledCourses: _profile.enrolledCourses,
+      completedCourses: _profile.completedCourses,
+      learningHours: _profile.learningHours,
+      currentStreak: _profile.currentStreak,
+    );
+
+    notifyListeners();
+  }
+
   void updatePreferences({
     String? learningGoal,
     String? preferredDifficulty,
