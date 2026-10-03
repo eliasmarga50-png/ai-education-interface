@@ -1,6 +1,6 @@
 
 
-import '../../../shared/models/lesson.dart';
+import 'package:ai_education_interface/shared/models/lesson.dart';
 
 class LessonData {
   LessonData._();
