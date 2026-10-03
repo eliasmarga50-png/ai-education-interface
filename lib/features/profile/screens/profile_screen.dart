@@ -1,187 +1,238 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../data/profile_data.dart';
+import 'appearance_screen.dart';
+import 'edit_profile_screen.dart';
+import 'preferences_screen.dart';
 import '../models/profile.dart';
+import '../services/profile_controller.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  void _openScreen(
+    BuildContext context,
+    Widget screen,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => screen,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const profile = ProfileData.currentUser;
+    return AnimatedBuilder(
+      animation: ProfileController.instance,
+      builder: (context, _) {
+        final profile =
+            ProfileController.instance.profile;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            tooltip: 'Settings',
-            onPressed: () {},
-            icon: const Icon(
-              Icons.settings_outlined,
-            ),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          10,
-          20,
-          30,
-        ),
-        children: [
-          _ProfileHeader(
-            profile: profile,
-          ),
-
-          const SizedBox(height: 28),
-
-          _LearningOverview(
-            profile: profile,
-          ),
-
-          const SizedBox(height: 30),
-
-          const _SectionTitle(
-            title: 'Account',
-          ),
-
-          const SizedBox(height: 12),
-
-          _ProfileMenuItem(
-            icon: Icons.person_outline,
-            title: 'Personal Information',
-            subtitle:
-                'Manage your name, email and profile',
-            onTap: () {},
-          ),
-
-          _ProfileMenuItem(
-            icon: Icons.notifications_none,
-            title: 'Notifications',
-            subtitle:
-                'Manage your learning notifications',
-            onTap: () {},
-          ),
-
-          _ProfileMenuItem(
-            icon: Icons.tune,
-            title: 'Preferences',
-            subtitle:
-                'Customize your learning experience',
-            onTap: () {},
-          ),
-
-          const SizedBox(height: 28),
-
-          const _SectionTitle(
-            title: 'Learning',
-          ),
-
-          const SizedBox(height: 12),
-
-          _ProfileMenuItem(
-            icon: Icons.menu_book_outlined,
-            title: 'My Courses',
-            subtitle:
-                'View your enrolled courses',
-            onTap: () {},
-          ),
-
-          _ProfileMenuItem(
-            icon: Icons.workspace_premium_outlined,
-            title: 'Certificates',
-            subtitle:
-                'View your earned certificates',
-            onTap: () {},
-          ),
-
-          _ProfileMenuItem(
-            icon: Icons.flag_outlined,
-            title: 'Learning Goals',
-            subtitle:
-                'Set and track your learning goals',
-            onTap: () {},
-          ),
-
-          const SizedBox(height: 28),
-
-          const _SectionTitle(
-            title: 'Settings',
-          ),
-
-          const SizedBox(height: 12),
-
-          _ProfileMenuItem(
-            icon: Icons.dark_mode_outlined,
-            title: 'Appearance',
-            subtitle:
-                'Light, dark and system themes',
-            onTap: () {},
-          ),
-
-          _ProfileMenuItem(
-            icon: Icons.lock_outline,
-            title: 'Privacy',
-            subtitle:
-                'Manage your privacy settings',
-            onTap: () {},
-          ),
-
-          _ProfileMenuItem(
-            icon: Icons.help_outline,
-            title: 'Help & Support',
-            subtitle:
-                'Get help with the platform',
-            onTap: () {},
-          ),
-
-          const SizedBox(height: 24),
-
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.logout,
-            ),
-            label: const Text(
-              'Log Out',
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red,
-              side: const BorderSide(
-                color: Colors.red,
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Profile'),
+            actions: [
+              IconButton(
+                tooltip: 'Appearance',
+                onPressed: () {
+                  _openScreen(
+                    context,
+                    const AppearanceScreen(),
+                  );
+                },
+                icon: const Icon(
+                  Icons.settings_outlined,
+                ),
               ),
-              minimumSize: const Size(
-                double.infinity,
-                52,
-              ),
-            ),
+            ],
           ),
-
-          const SizedBox(height: 20),
-
-          const Center(
-            child: Text(
-              'AI Education Platform',
-              style: TextStyle(
-                color: AppTheme.textSecondaryColor,
-                fontSize: 12,
-              ),
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              10,
+              20,
+              30,
             ),
+            children: [
+              _ProfileHeader(
+                profile: profile,
+                onEditProfile: () {
+                  _openScreen(
+                    context,
+                    const EditProfileScreen(),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 28),
+
+              _LearningOverview(
+                profile: profile,
+              ),
+
+              const SizedBox(height: 30),
+
+              const _SectionTitle(
+                title: 'Account',
+              ),
+
+              const SizedBox(height: 12),
+
+              _ProfileMenuItem(
+                icon: Icons.person_outline,
+                title: 'Personal Information',
+                subtitle:
+                    'Manage your name, email and profile',
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const EditProfileScreen(),
+                  );
+                },
+              ),
+
+              _ProfileMenuItem(
+                icon: Icons.notifications_none,
+                title: 'Notifications',
+                subtitle:
+                    'Manage your learning notifications',
+                onTap: () {},
+              ),
+
+              _ProfileMenuItem(
+                icon: Icons.tune,
+                title: 'Preferences',
+                subtitle:
+                    'Customize your learning experience',
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const PreferencesScreen(),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 28),
+
+              const _SectionTitle(
+                title: 'Learning',
+              ),
+
+              const SizedBox(height: 12),
+
+              _ProfileMenuItem(
+                icon: Icons.menu_book_outlined,
+                title: 'My Courses',
+                subtitle:
+                    'View your enrolled courses',
+                onTap: () {},
+              ),
+
+              _ProfileMenuItem(
+                icon:
+                    Icons.workspace_premium_outlined,
+                title: 'Certificates',
+                subtitle:
+                    'View your earned certificates',
+                onTap: () {},
+              ),
+
+              _ProfileMenuItem(
+                icon: Icons.flag_outlined,
+                title: 'Learning Goals',
+                subtitle:
+                    'Set and track your learning goals',
+                onTap: () {},
+              ),
+
+              const SizedBox(height: 28),
+
+              const _SectionTitle(
+                title: 'Settings',
+              ),
+
+              const SizedBox(height: 12),
+
+              _ProfileMenuItem(
+                icon: Icons.dark_mode_outlined,
+                title: 'Appearance',
+                subtitle:
+                    'Light, dark and system themes',
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const AppearanceScreen(),
+                  );
+                },
+              ),
+
+              _ProfileMenuItem(
+                icon: Icons.lock_outline,
+                title: 'Privacy',
+                subtitle:
+                    'Manage your privacy settings',
+                onTap: () {},
+              ),
+
+              _ProfileMenuItem(
+                icon: Icons.help_outline,
+                title: 'Help & Support',
+                subtitle:
+                    'Get help with the platform',
+                onTap: () {},
+              ),
+
+              const SizedBox(height: 24),
+
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(
+                  Icons.logout,
+                ),
+                label: const Text(
+                  'Log Out',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(
+                    color: Colors.red,
+                  ),
+                  minimumSize: const Size(
+                    double.infinity,
+                    52,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              const Center(
+                child: Text(
+                  'AI Education Platform',
+                  style: TextStyle(
+                    color:
+                        AppTheme.textSecondaryColor,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 class _ProfileHeader extends StatelessWidget {
   final UserProfile profile;
+  final VoidCallback onEditProfile;
 
   const _ProfileHeader({
     required this.profile,
+    required this.onEditProfile,
   });
 
   @override
@@ -246,9 +297,8 @@ class _ProfileHeader extends StatelessWidget {
 
         Text(
           profile.email,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium,
+          style:
+              Theme.of(context).textTheme.bodyMedium,
         ),
 
         const SizedBox(height: 10),
@@ -256,18 +306,16 @@ class _ProfileHeader extends StatelessWidget {
         Text(
           profile.bio,
           textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(
-                height: 1.4,
-              ),
+          style:
+              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.4,
+                  ),
         ),
 
         const SizedBox(height: 16),
 
         OutlinedButton.icon(
-          onPressed: () {},
+          onPressed: onEditProfile,
           icon: const Icon(
             Icons.edit_outlined,
             size: 18,
@@ -305,7 +353,7 @@ class _LearningOverview extends StatelessWidget {
                 label: 'Courses',
               ),
             ),
-            _VerticalDivider(),
+            const _VerticalDivider(),
             Expanded(
               child: _StatItem(
                 icon:
@@ -315,7 +363,7 @@ class _LearningOverview extends StatelessWidget {
                 label: 'Completed',
               ),
             ),
-            _VerticalDivider(),
+            const _VerticalDivider(),
             Expanded(
               child: _StatItem(
                 icon:
@@ -325,10 +373,11 @@ class _LearningOverview extends StatelessWidget {
                 label: 'Learning',
               ),
             ),
-            _VerticalDivider(),
+            const _VerticalDivider(),
             Expanded(
               child: _StatItem(
-                icon: Icons.local_fire_department_outlined,
+                icon:
+                    Icons.local_fire_department_outlined,
                 value:
                     '${profile.currentStreak}',
                 label: 'Day Streak',
