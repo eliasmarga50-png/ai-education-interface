@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../services/profile_controller.dart';
+import '../widgets/profile_avatar.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -14,6 +16,8 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState
     extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  final ImagePicker _imagePicker = ImagePicker();
 
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
@@ -28,25 +32,33 @@ class _EditProfileScreenState
 
     final profile = _profileController.profile;
 
-    _nameController = TextEditingController(
-      text: profile.name,
-    );
+    _nameController =
+        TextEditingController(text: profile.name);
 
-    _emailController = TextEditingController(
-      text: profile.email,
-    );
+    _emailController =
+        TextEditingController(text: profile.email);
 
-    _bioController = TextEditingController(
-      text: profile.bio,
-    );
+    _bioController =
+        TextEditingController(text: profile.bio);
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _bioController.dispose();
-    super.dispose();
+  Future<void> _pickAvatar() async {
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
+
+    if (image == null) {
+      return;
+    }
+
+    _profileController.updateAvatar(image.path);
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _saveProfile() {
@@ -62,11 +74,22 @@ class _EditProfileScreenState
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Profile updated successfully.'),
+        content: Text(
+          'Profile updated successfully.',
+        ),
       ),
     );
 
     Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _bioController.dispose();
+
+    super.dispose();
   }
 
   @override
@@ -92,49 +115,60 @@ class _EditProfileScreenState
           ),
           children: [
             Center(
-              child: Stack(
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(
-                        alpha: 0.1,
+              child: AnimatedBuilder(
+                animation: _profileController,
+                builder: (context, _) {
+                  final profile =
+                      _profileController.profile;
+
+                  return Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      ProfileAvatar(
+                        imagePath: profile.avatarUrl,
+                        radius: 58,
+                        fallbackText: profile.name,
                       ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      size: 52,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 2,
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 3,
+                      Material(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          onTap: _pickAvatar,
+                          customBorder:
+                              const CircleBorder(),
+                          child: const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Icon(
-                        Icons.camera_alt_outlined,
-                        color: Colors.white,
-                        size: 17,
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 12),
+
+            Center(
+              child: TextButton.icon(
+                onPressed: _pickAvatar,
+                icon: const Icon(
+                  Icons.photo_library_outlined,
+                ),
+                label: const Text(
+                  'Change profile photo',
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 18),
 
             Text(
               'Personal Information',
@@ -147,7 +181,8 @@ class _EditProfileScreenState
 
             TextFormField(
               controller: _nameController,
-              textInputAction: TextInputAction.next,
+              textInputAction:
+                  TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Full name',
                 prefixIcon: Icon(
@@ -170,7 +205,8 @@ class _EditProfileScreenState
               controller: _emailController,
               keyboardType:
                   TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
+              textInputAction:
+                  TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Email address',
                 prefixIcon: Icon(
@@ -178,7 +214,8 @@ class _EditProfileScreenState
                 ),
               ),
               validator: (value) {
-                final email = value?.trim() ?? '';
+                final email =
+                    value?.trim() ?? '';
 
                 if (email.isEmpty) {
                   return 'Please enter your email.';
