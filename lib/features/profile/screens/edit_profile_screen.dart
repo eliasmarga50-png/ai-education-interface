@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/theme/app_theme.dart';
+
 import '../services/profile_controller.dart';
 import '../widgets/profile_avatar.dart';
 
