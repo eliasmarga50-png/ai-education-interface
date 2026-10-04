@@ -109,6 +109,16 @@ class AuthController {
     await preferences.remove(_userKey);
     await preferences.setBool(_loggedInKey, false);
   }
+
+  Future<bool> resetPassword ({
+    required String email,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty) {
+      return false;
+    }
+    return true;
+  }
 }
 
 
