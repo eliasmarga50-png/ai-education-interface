@@ -100,6 +100,15 @@ class AuthController {
 
     return verifiedUser;
   }
+
+  Future<void> logout() async {
+    final preferences = await SharedPreferences.getInstance();
+
+    _currentUser = null;
+
+    await preferences.remove(_userKey);
+    await preferences.setBool(_loggedInKey, false);
+  }
 }
 
 
