@@ -84,6 +84,22 @@ class AuthController {
 
          return user;
   }
+
+  Future<AuthUser?> verifyEmail() async {
+    final user = _currentUser;
+
+    if (user==null) {
+      return null;
+    }
+
+    final verifiedUser = user.copyWith(
+      isVerified: true,
+    );
+
+    await _saveSession(verifiedUser);
+
+    return verifiedUser;
+  }
 }
 
 
