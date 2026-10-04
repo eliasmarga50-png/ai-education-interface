@@ -13,6 +13,33 @@ class AuthController {
 
   AuthUser? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
+
+  Future<void> initialize() async {
+    final preferences = await SharedPreferences.getInstance();
+    final loggedIn = preferences.getBool(_loggedInKey) ?? false;
+
+    if (!loggedIn) {
+      _currentUser = null;
+      return;
+    }
+
+    final userJson = preferences.getString(_userKey);
+
+    if (userJson==null) {
+      _currentUser = null;
+      await preferences.setBool(_loggedInKey, false);
+      return;
+    }
+    try {
+      final decoded = jsonDecode(userJson) as Map<String, dynamic>;
+      _currentUser = AuthUser.fromJson(decoded);
+    }
+    catch (_) {
+      _currentUser = null;
+      await preferences.remove(_userKey);
+      await preferences.setBool(_loggedInKey, false);
+    }
+  }
 }
 
 
