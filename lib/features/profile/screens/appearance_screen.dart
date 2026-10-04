@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
 
 class AppearanceScreen extends StatelessWidget {
@@ -11,8 +10,7 @@ class AppearanceScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: ThemeController.instance,
       builder: (context, _) {
-        final themeMode =
-            ThemeController.instance.themeMode;
+        final controller = ThemeController.instance;
 
         return Scaffold(
           appBar: AppBar(
@@ -21,15 +19,11 @@ class AppearanceScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(
               20,
-              16,
+              20,
               20,
               30,
             ),
             children: [
-              const _AppearanceHeader(),
-
-              const SizedBox(height: 28),
-
               Text(
                 'Theme',
                 style: Theme.of(context)
@@ -37,48 +31,57 @@ class AppearanceScreen extends StatelessWidget {
                     .titleLarge,
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
-              Card(
+              Text(
+                'Choose how the app should look.',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
+              ),
+
+              const SizedBox(height: 20),
+
+              RadioGroup<ThemeMode>(
+                groupValue: controller.themeMode,
+                onChanged: (value) {
+                  if (value != null) {
+                    controller.setThemeMode(value);
+                  }
+                },
                 child: Column(
                   children: [
                     _ThemeOption(
-                      icon: Icons.brightness_auto_outlined,
                       title: 'System default',
                       subtitle:
                           'Follow your device theme.',
+                      icon: Icons.brightness_auto_outlined,
                       value: ThemeMode.system,
-                      groupValue: themeMode,
-                      onChanged: (value) {
-                        ThemeController.instance
-                            .setThemeMode(value);
-                      },
                     ),
-                    const Divider(height: 1),
+
+                    const SizedBox(height: 12),
+
                     _ThemeOption(
-                      icon: Icons.light_mode_outlined,
                       title: 'Light',
                       subtitle:
-                          'Use the light theme.',
+                          'Always use the light theme.',
+                      icon: Icons.light_mode_outlined,
                       value: ThemeMode.light,
-                      groupValue: themeMode,
-                      onChanged: (value) {
-                        ThemeController.instance
-                            .setThemeMode(value);
-                      },
                     ),
-                    const Divider(height: 1),
+
+                    const SizedBox(height: 12),
+
                     _ThemeOption(
-                      icon: Icons.dark_mode_outlined,
                       title: 'Dark',
                       subtitle:
-                          'Use the dark theme.',
+                          'Always use the dark theme.',
+                      icon: Icons.dark_mode_outlined,
                       value: ThemeMode.dark,
-                      groupValue: themeMode,
-                      onChanged: (value) {
-                        ThemeController.instance
-                            .setThemeMode(value);
-                      },
                     ),
                   ],
                 ),
@@ -90,41 +93,65 @@ class AppearanceScreen extends StatelessWidget {
                 'Preview',
                 style: Theme.of(context)
                     .textTheme
-                    .titleLarge,
+                    .titleMedium,
               ),
 
               const SizedBox(height: 12),
 
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor
-                              .withValues(alpha: 0.1),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer,
                           borderRadius:
-                              BorderRadius.circular(14),
+                              BorderRadius.circular(16),
                         ),
-                        child: const Icon(
-                          Icons.palette_outlined,
-                          color:
-                              AppTheme.primaryColor,
+                        child: Icon(
+                          Icons.school_outlined,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimaryContainer,
                         ),
                       ),
-                      const SizedBox(width: 14),
+
+                      const SizedBox(width: 16),
+
                       Expanded(
-                        child: Text(
-                          'Your selected theme is applied throughout the application.',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                height: 1.5,
-                              ),
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AI Education Platform',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight:
+                                        FontWeight.w700,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Your learning journey starts here.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color:
+                                        Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -139,94 +166,53 @@ class AppearanceScreen extends StatelessWidget {
   }
 }
 
-class _AppearanceHeader
-    extends StatelessWidget {
-  const _AppearanceHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(
-          alpha: 0.08,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Row(
-        children: [
-          Icon(
-            Icons.palette_outlined,
-            color: AppTheme.primaryColor,
-            size: 30,
-          ),
-          SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              'Choose how AI Education Platform should look on your device.',
-              style: TextStyle(
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ThemeOption extends StatelessWidget {
-  final IconData icon;
   final String title;
   final String subtitle;
+  final IconData icon;
   final ThemeMode value;
-  final ThemeMode groupValue;
-  final ValueChanged<ThemeMode> onChanged;
 
   const _ThemeOption({
-    required this.icon,
     required this.title,
     required this.subtitle,
+    required this.icon,
     required this.value,
-    required this.groupValue,
-    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = value == groupValue;
-
-    return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 6,
-      ),
-      leading: Icon(
-        icon,
-        color: isSelected
-            ? AppTheme.primaryColor
-            : null,
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 6,
         ),
-      ),
-      subtitle: Text(subtitle),
-      trailing: Radio<ThemeMode>(
-        value: value,
-        groupValue: groupValue,
-        onChanged: (selectedValue) {
-          if (selectedValue != null) {
-            onChanged(selectedValue);
-          }
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context)
+              .colorScheme
+              .primaryContainer,
+          child: Icon(
+            icon,
+            color: Theme.of(context)
+                .colorScheme
+                .onPrimaryContainer,
+          ),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(subtitle),
+        trailing: Radio<ThemeMode>(
+          value: value,
+        ),
+        onTap: () {
+          ThemeController.instance.setThemeMode(value);
         },
       ),
-      onTap: () {
-        onChanged(value);
-      },
     );
   }
 }
