@@ -62,7 +62,28 @@ class AuthController {
       return user;
   }
 
-  
+  Future<AuthUser?> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final normalizedName = name.trim();
+    final normalizedEmail = email.trim().toLowerCase();
+
+    if(normalizedName.isEmpty || normalizedEmail.isEmpty || password.isEmpty) {
+      return null;
+    }
+
+    final user = AuthUser(
+      id: 'local-user-1', 
+      name: normalizedName, 
+      email: normalizedEmail, 
+      isVerified: false,);
+
+         await _saveSession(user);
+
+         return user;
+  }
 }
 
 
