@@ -40,6 +40,29 @@ class AuthController {
       await preferences.setBool(_loggedInKey, false);
     }
   }
+
+  Future<AuthUser?> login({
+    required String email,
+    required String password,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedEmail.isEmpty || password.isEmpty) {
+      return null;
+    }
+
+    final user = AuthUser(
+      id: 'local-user-1', 
+      name: normalizedEmail.split('@').first, 
+      email: normalizedEmail, 
+      isVerified: true,
+      );
+
+      await _saveSession(user);
+      return user;
+  }
+
+  
 }
 
 
