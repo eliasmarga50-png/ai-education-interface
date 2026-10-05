@@ -85,6 +85,26 @@ class _VerificationScreenState extends State<VerificationScreen> {
       }
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 520,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+            ),
+          ),
+        ),
+        ),
+    );
+  }
 }
 
 
