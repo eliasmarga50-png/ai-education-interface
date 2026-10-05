@@ -99,6 +99,28 @@ class _VerificationScreenState extends State<VerificationScreen> {
             ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 48),
+
+                  Icon(
+                    Icons.mark_email_read_outlined,
+                    size: 88,
+                    color: theme.colorScheme.primary,
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  Text(
+                    'verify your email',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
