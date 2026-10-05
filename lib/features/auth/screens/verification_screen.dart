@@ -51,7 +51,39 @@ class _VerificationScreenState extends State<VerificationScreen> {
           ),
           (route) => false,
         );
-    } finally {}
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _resendVerification() async {
+    setState(() {
+      _isResending = true;
+    });
+
+    try {
+      await Future<void>.delayed(
+        const Duration(milliseconds: 500),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showMessage(
+        'A new verification email has been requested.',
+      );
+    }  finally {
+      if (mounted) {
+        setState(() {
+          _isResending = false;
+        });
+      }
+    }
   }
 }
 
