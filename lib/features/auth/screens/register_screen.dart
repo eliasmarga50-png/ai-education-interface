@@ -66,9 +66,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
 
         Navigator.of(context).pop(user);
-    } finally {}
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
   
+  @override 
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create Account'),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 520,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 24),
+
+                    Text(
+                      'Create your account',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Text(
+                      'Start your personalized learning journey'
+                      'with AI Education',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    TextFormField(
+                      controller: _nameController,
+                      
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        ),
+    );
+  }
 
 }
 
