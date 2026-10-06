@@ -1,0 +1,9 @@
+warning: in the working copy of 'pubspec.lock', LF will be replaced by CRLF the next time Git touches it
+ lib/features/auth/screens/auth_gate.dart        |  83 [32m+++[m[31m--[m
+ lib/features/auth/screens/login_screen.dart     | 389 [32m++++++++++[m[31m--------------[m
+ lib/features/auth/screens/splash_screen.dart    | 117 [32m++++[m[31m---[m
+ lib/features/auth/services/auth_controller.dart | 300 [32m++++++++[m[31m----------[m
+ lib/main.dart                                   |  15 [32m+[m[31m-[m
+ pubspec.lock                                    |   2 [32m+[m[31m-[m
+ pubspec.yaml                                    |   1 [32m+[m
+ 7 files changed, 410 insertions(+), 497 deletions(-)
