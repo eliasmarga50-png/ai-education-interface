@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../home/screens/main_shell.dart';
 import '../services/auth_controller.dart';
 
 class VerificationScreen extends StatefulWidget {
@@ -43,12 +42,8 @@ try {
     return;
   }
 
-  Navigator.of(context).pushAndRemoveUntil(
-    MaterialPageRoute(
-      builder: (_) => const MainShell(),
-    ),
-    (route) => false,
-  );
+  // No navigation here: AuthController is now authenticated and
+  // AuthGate swaps this screen for MainShell.
 } finally {
   if (mounted) {
     setState(() {
