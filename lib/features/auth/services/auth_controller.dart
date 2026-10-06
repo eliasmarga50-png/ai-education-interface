@@ -207,6 +207,29 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Throws away an account that never verified its email (for example one
+  /// registered with a mistyped address) so the user can start over.
+  /// Unlike [logOut], this deletes the saved account, so a restart does not
+  /// bring the user back to the verification screen.
+  Future<void> discardUnverifiedAccount() async {
+    final current = _user;
+
+    // Never delete a verified account from here; that is what logOut is for.
+    if (current == null || current.isVerified) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kUser);
+    await prefs.remove(_kHash);
+    await prefs.remove(_kSession);
+
+    _user = null;
+    _lastError = null;
+    _status = AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+
   AuthUser? _fail(String message) {
     _lastError = message;
     return null;
