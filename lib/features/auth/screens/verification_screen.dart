@@ -189,7 +189,18 @@ return Scaffold(
                     : const Text('Resend Verification Email'),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+
+              // Escape hatch for a mistyped email: deletes the unverified
+              // account; AuthGate then returns to the welcome flow.
+              TextButton(
+                onPressed: _isVerifying || _isResending
+                    ? null
+                    : _authController.discardUnverifiedAccount,
+                child: const Text('Use a different email'),
+              ),
+
+              const SizedBox(height: 16),
 
               Text(
                 'Check your spam or junk folder if you do not '
