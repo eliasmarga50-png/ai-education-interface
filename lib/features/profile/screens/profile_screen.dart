@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../auth/services/auth_controller.dart';
 import 'appearance_screen.dart';
 import 'edit_profile_screen.dart';
 import 'preferences_screen.dart';
@@ -20,6 +21,38 @@ class ProfileScreen extends StatelessWidget {
         builder: (_) => screen,
       ),
     );
+  }
+
+  Future<void> _confirmLogOut(BuildContext context) async {
+    final shouldLogOut = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Log out?'),
+          content: const Text(
+            'You will need to log in again to continue learning.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogOut != true) {
+      return;
+    }
+
+    // No navigation here: AuthController becomes unauthenticated and
+    // AuthGate swaps the app for the welcome flow.
+    await AuthController.instance.logOut();
   }
 
   @override
@@ -187,7 +220,7 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => _confirmLogOut(context),
                 icon: const Icon(
                   Icons.logout,
                 ),
