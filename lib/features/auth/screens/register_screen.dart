@@ -1,6 +1,3 @@
-
-
-
 import 'package:flutter/material.dart';
 
 import '../services/auth_controller.dart';
@@ -64,11 +61,15 @@ try {
   }
 
   if (user == null) {
-    _showMessage('Unable to create your account.');
+    _showMessage(
+      _authController.lastError ??
+          'Unable to create your account.',
+    );
     return;
   }
 
-  Navigator.of(context).pop(user);
+  // No navigation here: AuthController is now needsVerification and
+  // AuthGate swaps this whole flow for the verification screen.
 } finally {
   if (mounted) {
     setState(() {
@@ -310,7 +311,7 @@ return Scaffold(
 
 bool _isValidEmail(String email) {
 return RegExp(
-r'^[^@\s]+@[^@\s]+.[^@\s]+$',
+r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
 ).hasMatch(email);
 }
 
