@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../quizzes/screens/quiz_list_screen.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -164,6 +166,21 @@ class _ExploreSection extends StatelessWidget {
             title: 'AI Tutor',
           ),
         ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _ExploreCard(
+            icon: Icons.quiz_outlined,
+            title: 'Quizzes',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const QuizListScreen(),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -172,17 +189,19 @@ class _ExploreSection extends StatelessWidget {
 class _ExploreCard extends StatelessWidget {
   final IconData icon;
   final String title;
+  final VoidCallback? onTap;
 
   const _ExploreCard({
     required this.icon,
     required this.title,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: InkWell(
-        onTap: () {},
+        onTap: onTap ?? () {},
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(
