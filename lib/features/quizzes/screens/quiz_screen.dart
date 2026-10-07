@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/quiz.dart';
 import '../models/quiz_result.dart';
+import '../services/quiz_progress_service.dart';
 import '../widgets/quiz_progress_indicator.dart';
 import '../widgets/quiz_question_card.dart';
 import 'quiz_result_screen.dart';
@@ -89,12 +90,24 @@ class _QuizScreenState extends State<QuizScreen> {
       return;
     }
 
+    final result = _buildResult();
+
+    // Saves the score, and marks the lesson complete when the quiz is passed.
+    await QuizProgressService.instance.recordResult(
+      result,
+      lessonId: _quiz.lessonId,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
     final action = await Navigator.push<QuizResultAction>(
       context,
       MaterialPageRoute(
         builder: (_) => QuizResultScreen(
           quiz: _quiz,
-          result: _buildResult(),
+          result: result,
           answers: List<String?>.unmodifiable(_answers),
         ),
       ),
