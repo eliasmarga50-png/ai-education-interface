@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/services/auth_controller.dart';
+import '../../quizzes/data/mock_quiz_data.dart';
+import '../../quizzes/screens/quiz_list_screen.dart';
+import '../../quizzes/services/quiz_progress_service.dart';
 import 'appearance_screen.dart';
 import 'edit_profile_screen.dart';
 import 'preferences_screen.dart';
@@ -104,6 +107,10 @@ class ProfileScreen extends StatelessWidget {
               _LearningOverview(
                 profile: profile,
               ),
+
+              const SizedBox(height: 14),
+
+              const _QuizStatsCard(),
 
               const SizedBox(height: 30),
 
@@ -358,6 +365,56 @@ class _ProfileHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _QuizStatsCard extends StatelessWidget {
+  const _QuizStatsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AnimatedBuilder(
+      animation: QuizProgressService.instance,
+      builder: (context, child) {
+        final service = QuizProgressService.instance;
+        final total = MockQuizData.quizzes.length;
+
+        final subtitle = service.totalAttempts == 0
+            ? '$total quizzes available'
+            : '${service.quizzesPassed} of $total passed · '
+                '${service.averageBestPercentage.round()}% average';
+
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const QuizListScreen(),
+                ),
+              );
+            },
+            leading: CircleAvatar(
+              backgroundColor:
+                  theme.colorScheme.primary.withValues(alpha: 0.1),
+              child: Icon(
+                Icons.quiz_outlined,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            title: const Text(
+              'Quizzes',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(subtitle),
+            trailing: const Icon(Icons.chevron_right),
+          ),
+        );
+      },
     );
   }
 }
