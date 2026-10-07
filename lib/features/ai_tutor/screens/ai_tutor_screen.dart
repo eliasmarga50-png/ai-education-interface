@@ -1,11 +1,12 @@
-
-
-
-
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../quizzes/screens/quiz_list_screen.dart';
 import '../data/tutor_data.dart';
+import '../models/chat_conversation.dart';
+import '../services/tutor_controller.dart';
+import '../utils/chat_time.dart';
+import 'chat_history_screen.dart';
 import 'chat_screen.dart';
 
 class AITutorScreen extends StatelessWidget {
@@ -14,15 +15,32 @@ class AITutorScreen extends StatelessWidget {
   void _openChat(
     BuildContext context, {
     String? question,
+    ChatConversation? conversation,
   }) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatScreen(
           initialQuestion: question,
+          conversation: conversation,
         ),
       ),
     );
+  }
+
+  Future<void> _openHistory(BuildContext context) async {
+    final selected = await Navigator.push<ChatConversation>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ChatHistoryScreen(),
+      ),
+    );
+
+    if (selected == null || !context.mounted) {
+      return;
+    }
+
+    _openChat(context, conversation: selected);
   }
 
   @override
@@ -31,6 +49,15 @@ class AITutorScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('AI Tutor'),
         actions: [
+          IconButton(
+            tooltip: 'Chat history',
+            onPressed: () {
+              _openHistory(context);
+            },
+            icon: const Icon(
+              Icons.history,
+            ),
+          ),
           IconButton(
             tooltip: 'Chat',
             onPressed: () {
@@ -131,11 +158,19 @@ class AITutorScreen extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          const _CapabilityCard(
+          _CapabilityCard(
             icon: Icons.quiz_outlined,
             title: 'Practice with questions',
             description:
                 'Test your understanding with practice questions.',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const QuizListScreen(),
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 12),
@@ -149,8 +184,14 @@ class AITutorScreen extends StatelessWidget {
 
           const SizedBox(height: 28),
 
-          _RecentConversationCard(
-            onTap: () {
+          _RecentConversations(
+            onOpen: (conversation) {
+              _openChat(context, conversation: conversation);
+            },
+            onViewAll: () {
+              _openHistory(context);
+            },
+            onStartNew: () {
               _openChat(context);
             },
           ),
@@ -247,16 +288,23 @@ class _CapabilityCard extends StatelessWidget {
   final String title;
   final String description;
 
+  /// When set, the card is tappable and shows a chevron.
+  final VoidCallback? onTap;
+
   const _CapabilityCard({
     required this.icon,
     required this.title,
     required this.description,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
@@ -303,71 +351,104 @@ class _CapabilityCard extends StatelessWidget {
                 ],
               ),
             ),
+
+            if (onTap != null) const Icon(Icons.chevron_right),
           ],
         ),
+      ),
       ),
     );
   }
 }
+class _RecentConversations extends StatelessWidget {
+  final ValueChanged<ChatConversation> onOpen;
+  final VoidCallback onViewAll;
+  final VoidCallback onStartNew;
 
-class _RecentConversationCard
-    extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _RecentConversationCard({
-    required this.onTap,
+  const _RecentConversations({
+    required this.onOpen,
+    required this.onViewAll,
+    required this.onStartNew,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: const Padding(
-          padding: EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                child: Icon(
-                  Icons.chat_bubble_outline,
+    final theme = Theme.of(context);
+
+    return AnimatedBuilder(
+      animation: TutorController.instance,
+      builder: (context, child) {
+        final recent = TutorController.instance.conversations.take(3).toList();
+
+        if (recent.isEmpty) {
+          return Card(
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              onTap: onStartNew,
+              leading: const CircleAvatar(
+                child: Icon(Icons.chat_bubble_outline),
+              ),
+              title: const Text(
+                'Start your first conversation',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text('Ask your AI Tutor anything'),
+              trailing: const Icon(Icons.chevron_right),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Recent conversations',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                ),
+                TextButton(
+                  onPressed: onViewAll,
+                  child: const Text('View all'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final conversation in recent)
+              Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  onTap: () => onOpen(conversation),
+                  leading: CircleAvatar(
+                    child: Icon(
+                      conversation.lesson == null
+                          ? Icons.chat_bubble_outline
+                          : Icons.menu_book_outlined,
+                    ),
+                  ),
+                  title: Text(
+                    conversation.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    conversation.lesson?.lessonTitle ?? 'General chat',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Text(
+                    ChatTime.relative(conversation.updatedAt),
+                    style: theme.textTheme.bodySmall,
+                  ),
                 ),
               ),
-              SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Continue learning',
-                      style: TextStyle(
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Open your AI Tutor conversation',
-                      style: TextStyle(
-                        color:
-                            AppTheme
-                                .textSecondaryColor,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-              ),
-            ],
-          ),
-        ),
-      ),
+          ],
+        );
+      },
     );
   }
 }
-
-
