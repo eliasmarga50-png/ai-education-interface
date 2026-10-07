@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/quiz.dart';
 import '../models/quiz_result.dart';
+import '../services/quiz_progress_service.dart';
 import '../widgets/quiz_option_tile.dart';
 
 /// What the user chose to do on the result screen. [QuizScreen] receives this
@@ -34,6 +35,10 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
   bool _showReview = false;
 
   QuizResult get _result => widget.result;
+
+  bool get _passed {
+    return _result.percentage >= QuizProgressService.passingPercentage;
+  }
 
   String get _headline {
     if (_result.isPerfect) {
@@ -148,6 +153,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                         height: 1.5,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    _PassBadge(passed: _passed),
                     const SizedBox(height: 24),
                     Row(
                       children: [
@@ -247,6 +254,54 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PassBadge extends StatelessWidget {
+  final bool passed;
+
+  const _PassBadge({
+    required this.passed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final color =
+        passed ? Colors.green.shade600 : theme.colorScheme.onSurfaceVariant;
+
+    final needed = QuizProgressService.passingPercentage.round();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            passed ? Icons.check_circle : Icons.info_outline,
+            size: 18,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              passed
+                  ? 'Passed · lesson marked complete'
+                  : 'Score $needed% or more to pass',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
