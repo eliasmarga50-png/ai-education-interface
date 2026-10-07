@@ -31,19 +31,13 @@ class SuggestedQuestion extends StatelessWidget {
         vertical: 8,
       ),
       side: BorderSide(
-        color: AppTheme.primaryColor.withValues(
-          alpha: 0.15,
-        ),
+        color: AppTheme.primaryColor.withValues(alpha: 0.15),
       ),
-      backgroundColor:
-          AppTheme.primaryColor.withValues(
-        alpha: 0.05,
-      ),
-      labelStyle: const TextStyle(
-        color: AppTheme.textPrimaryColor,
+      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.05),
+      // Theme-aware, so the text stays readable in dark mode.
+      labelStyle: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
 }
-
-
