@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/course.dart';
 import '../../../shared/models/lesson.dart';
+import '../../ai_tutor/models/tutor_context.dart';
+import '../../ai_tutor/screens/chat_screen.dart';
+import '../../ai_tutor/services/tutor_controller.dart';
+import '../../quizzes/data/mock_quiz_data.dart';
+import '../../quizzes/models/quiz.dart';
+import '../../quizzes/screens/quiz_screen.dart';
+import '../../quizzes/services/quiz_progress_service.dart';
 import '../data/lesson_data.dart';
 import '../services/learning_progress_service.dart';
 
@@ -25,6 +32,7 @@ class _LessonContentScreenState
     extends State<LessonContentScreen> {
   late final List<CourseModule> _modules;
   late final List<Lesson> _allLessons;
+  late final Quiz? _quiz;
 
   @override
   void initState() {
@@ -36,6 +44,8 @@ class _LessonContentScreenState
     _allLessons = _modules
         .expand((module) => module.lessons)
         .toList();
+
+    _quiz = MockQuizData.quizForLesson(widget.lesson.id);
   }
 
   bool get _isCompleted {
@@ -88,6 +98,35 @@ class _LessonContentScreenState
     );
 
     setState(() {});
+  }
+
+  /// Opens the AI Tutor about this lesson, resuming the last chat about it.
+  void _openTutor() {
+    final lessonContext = TutorContext.fromLesson(
+      course: widget.course,
+      lesson: widget.lesson,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          conversation: TutorController.instance.latestForLesson(
+            widget.lesson.id,
+          ),
+          lesson: lessonContext,
+        ),
+      ),
+    );
+  }
+
+  void _openQuiz(Quiz quiz) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizScreen(quiz: quiz),
+      ),
+    );
   }
 
   void _openLesson(Lesson lesson) {
@@ -166,6 +205,13 @@ class _LessonContentScreenState
           appBar: AppBar(
             title: const Text('Lesson'),
             actions: [
+              IconButton(
+                tooltip: 'Ask AI Tutor',
+                onPressed: _openTutor,
+                icon: const Icon(
+                  Icons.smart_toy_outlined,
+                ),
+              ),
               IconButton(
                 tooltip: 'Lesson outline',
                 onPressed: _showLessonOutline,
@@ -281,6 +327,21 @@ class _LessonContentScreenState
               const _ResourcesSection(),
 
               const SizedBox(height: 30),
+
+              _TutorSection(
+                onAsk: _openTutor,
+              ),
+
+              const SizedBox(height: 30),
+
+              if (_quiz case final quiz?) ...[
+                _QuizSection(
+                  quiz: quiz,
+                  onStart: () => _openQuiz(quiz),
+                ),
+
+                const SizedBox(height: 30),
+              ],
 
               _CompletionSection(
                 isCompleted: _isCompleted,
@@ -442,6 +503,177 @@ class _ResourcesSection extends StatelessWidget {
             ),
             onTap: () {},
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TutorSection extends StatelessWidget {
+  final VoidCallback onAsk;
+
+  const _TutorSection({
+    required this.onAsk,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppTheme.primaryColor.withValues(
+                    alpha: 0.1,
+                  ),
+                  child: const Icon(
+                    Icons.smart_toy_outlined,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stuck on this lesson?',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Get an explanation, an example, or a practice '
+                        'question.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: onAsk,
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: const Text(
+                  'Ask AI Tutor',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuizSection extends StatelessWidget {
+  final Quiz quiz;
+  final VoidCallback onStart;
+
+  const _QuizSection({
+    required this.quiz,
+    required this.onStart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Test Your Knowledge',
+          style: theme.textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        AnimatedBuilder(
+          animation: QuizProgressService.instance,
+          builder: (context, child) {
+            final score = QuizProgressService.instance.scoreFor(quiz.id);
+            final passed = score?.passed ?? false;
+
+            final subtitle = score == null
+                ? '${quiz.questions.length} questions · '
+                    'pass with ${QuizProgressService.passingPercentage.round()}%'
+                : 'Best: ${score.bestCorrect}/${score.totalQuestions} '
+                    '(${score.bestPercentage.round()}%) · '
+                    '${passed ? 'Passed' : 'Not passed yet'}';
+
+            final accent =
+                passed ? Colors.green.shade600 : AppTheme.primaryColor;
+
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: accent.withValues(alpha: 0.1),
+                          child: Icon(
+                            passed
+                                ? Icons.check_circle_outline
+                                : Icons.quiz_outlined,
+                            color: accent,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Lesson Quiz',
+                                style: theme.textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitle,
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton.tonalIcon(
+                        onPressed: onStart,
+                        icon: Icon(
+                          score == null ? Icons.play_arrow : Icons.refresh,
+                        ),
+                        label: Text(
+                          score == null ? 'Start Quiz' : 'Retake Quiz',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
