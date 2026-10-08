@@ -6,6 +6,7 @@ import '../../../shared/models/lesson.dart';
 import '../../ai_tutor/models/tutor_context.dart';
 import '../../ai_tutor/screens/chat_screen.dart';
 import '../../ai_tutor/services/tutor_controller.dart';
+import '../../dashboard/services/learning_activity_service.dart';
 import '../../quizzes/data/mock_quiz_data.dart';
 import '../../quizzes/models/quiz.dart';
 import '../../quizzes/screens/quiz_screen.dart';
@@ -28,11 +29,14 @@ class LessonContentScreen extends StatefulWidget {
       _LessonContentScreenState();
 }
 
-class _LessonContentScreenState
-    extends State<LessonContentScreen> {
+class _LessonContentScreenState extends State<LessonContentScreen>
+    with WidgetsBindingObserver {
   late final List<CourseModule> _modules;
   late final List<Lesson> _allLessons;
   late final Quiz? _quiz;
+
+  // Counts time on this lesson while the app is in the foreground.
+  final Stopwatch _studyTimer = Stopwatch();
 
   @override
   void initState() {
@@ -46,6 +50,38 @@ class _LessonContentScreenState
         .toList();
 
     _quiz = MockQuizData.quizForLesson(widget.lesson.id);
+
+    WidgetsBinding.instance.addObserver(this);
+    _studyTimer.start();
+
+    LearningActivityService.instance.recordLessonOpened(widget.lesson.id);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _flushStudyTime();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (!_studyTimer.isRunning) {
+        _studyTimer.start();
+      }
+    } else if (state == AppLifecycleState.paused) {
+      _flushStudyTime();
+    }
+  }
+
+  void _flushStudyTime() {
+    _studyTimer.stop();
+
+    final seconds = _studyTimer.elapsed.inSeconds;
+    _studyTimer.reset();
+
+    LearningActivityService.instance.addStudySeconds(seconds);
   }
 
   bool get _isCompleted {
