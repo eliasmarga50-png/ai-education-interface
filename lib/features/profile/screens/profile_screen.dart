@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../auth/services/auth_controller.dart';
+import '../../dashboard/services/dashboard_service.dart';
+import '../../dashboard/services/learning_activity_service.dart';
+import '../../lessons/services/learning_progress_service.dart';
 import '../../quizzes/data/mock_quiz_data.dart';
 import '../../quizzes/screens/quiz_list_screen.dart';
 import '../../quizzes/services/quiz_progress_service.dart';
@@ -104,9 +107,7 @@ class ProfileScreen extends StatelessWidget {
 
               const SizedBox(height: 28),
 
-              _LearningOverview(
-                profile: profile,
-              ),
+              const _LearningOverview(),
 
               const SizedBox(height: 14),
 
@@ -420,62 +421,63 @@ class _QuizStatsCard extends StatelessWidget {
 }
 
 class _LearningOverview extends StatelessWidget {
-  final UserProfile profile;
-
-  const _LearningOverview({
-    required this.profile,
-  });
+  const _LearningOverview();
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 20,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _StatItem(
-                icon: Icons.menu_book_outlined,
-                value:
-                    '${profile.enrolledCourses}',
-                label: 'Courses',
-              ),
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        LearningProgressService.instance,
+        LearningActivityService.instance,
+      ]),
+      builder: (context, child) {
+        final snapshot = DashboardService.snapshot();
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 20,
             ),
-            const _VerticalDivider(),
-            Expanded(
-              child: _StatItem(
-                icon:
-                    Icons.check_circle_outline,
-                value:
-                    '${profile.completedCourses}',
-                label: 'Completed',
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _StatItem(
+                    icon: Icons.menu_book_outlined,
+                    value: '${snapshot.coursesStarted}',
+                    label: 'Started',
+                  ),
+                ),
+                const _VerticalDivider(),
+                Expanded(
+                  child: _StatItem(
+                    icon: Icons.check_circle_outline,
+                    value: '${snapshot.coursesCompleted}',
+                    label: 'Completed',
+                  ),
+                ),
+                const _VerticalDivider(),
+                Expanded(
+                  child: _StatItem(
+                    icon: Icons.access_time_outlined,
+                    value: DashboardService.formatDuration(
+                      snapshot.totalSeconds,
+                    ),
+                    label: 'Learning',
+                  ),
+                ),
+                const _VerticalDivider(),
+                Expanded(
+                  child: _StatItem(
+                    icon: Icons.local_fire_department_outlined,
+                    value: '${snapshot.streak}',
+                    label: 'Day Streak',
+                  ),
+                ),
+              ],
             ),
-            const _VerticalDivider(),
-            Expanded(
-              child: _StatItem(
-                icon:
-                    Icons.access_time_outlined,
-                value:
-                    '${profile.learningHours}h',
-                label: 'Learning',
-              ),
-            ),
-            const _VerticalDivider(),
-            Expanded(
-              child: _StatItem(
-                icon:
-                    Icons.local_fire_department_outlined,
-                value:
-                    '${profile.currentStreak}',
-                label: 'Day Streak',
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -524,7 +526,6 @@ class _StatItem extends StatelessWidget {
 
 class _VerticalDivider extends StatelessWidget {
   const _VerticalDivider();
-
   @override
   Widget build(BuildContext context) {
     return Container(
