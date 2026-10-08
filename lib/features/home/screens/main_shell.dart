@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/navigation/main_tabs.dart';
 import '../../courses/screens/courses_screen.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
 import '../../profile/screens/profile_screen.dart';
@@ -21,10 +22,33 @@ class _MainShellState extends State<MainShell> {
   ProfileScreen(),
 ];
 
-  void _onNavigationItemTapped(int index) {
+  @override
+  void initState() {
+    super.initState();
+
+    // A fresh shell (for example after logging in again) starts on Home.
+    MainTabs.index.value = MainTabs.home;
+    MainTabs.index.addListener(_onTabRequested);
+  }
+
+  @override
+  void dispose() {
+    MainTabs.index.removeListener(_onTabRequested);
+    super.dispose();
+  }
+
+  void _onTabRequested() {
+    if (!mounted || _currentIndex == MainTabs.index.value) {
+      return;
+    }
+
     setState(() {
-      _currentIndex = index;
+      _currentIndex = MainTabs.index.value;
     });
+  }
+
+  void _onNavigationItemTapped(int index) {
+    MainTabs.go(index);
   }
 
   @override
@@ -64,4 +88,3 @@ class _MainShellState extends State<MainShell> {
     );
   }
 }
-
