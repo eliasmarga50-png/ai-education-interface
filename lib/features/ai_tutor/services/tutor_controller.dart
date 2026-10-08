@@ -1,12 +1,10 @@
-
-
-
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../dashboard/services/learning_activity_service.dart';
 import '../models/chat_conversation.dart';
 import '../models/chat_message.dart';
 import '../models/tutor_context.dart';
@@ -122,6 +120,9 @@ class TutorController extends ChangeNotifier {
     }
 
     _register(conversation);
+
+    // Asking the tutor counts toward the daily streak.
+    LearningActivityService.instance.recordActivity();
 
     final now = DateTime.now();
 
@@ -301,6 +302,3 @@ class TutorController extends ChangeNotifier {
     }
   }
 }
-
-
-
