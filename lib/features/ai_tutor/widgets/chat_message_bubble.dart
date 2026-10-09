@@ -65,6 +65,12 @@ class ChatMessageBubble extends StatelessWidget {
                     bottomLeft: Radius.circular(isUser ? 18 : 4),
                     bottomRight: Radius.circular(isUser ? 4 : 18),
                   ),
+                  border: isUser
+                      ? null
+                      : Border.all(
+                          color: scheme.outlineVariant,
+                          width: 1,
+                        ),
                   boxShadow: isUser
                       ? null
                       : [
