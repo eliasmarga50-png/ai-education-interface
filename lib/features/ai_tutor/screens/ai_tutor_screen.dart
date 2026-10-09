@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/pressable_scale.dart';
 import '../../quizzes/screens/quiz_list_screen.dart';
 import '../data/tutor_data.dart';
 import '../models/chat_conversation.dart';
@@ -69,7 +70,10 @@ class AITutorScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820),
+          child: ListView(
         padding: const EdgeInsets.fromLTRB(
           20,
           10,
@@ -197,7 +201,9 @@ class AITutorScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -263,18 +269,21 @@ class _WelcomeCard extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          FilledButton.icon(
-            onPressed: onStartChat,
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor:
-                  AppTheme.primaryColor,
-            ),
-            icon: const Icon(
-              Icons.chat_outlined,
-            ),
-            label: const Text(
-              'Start a Conversation',
+          PressableScale(
+            onTap: onStartChat,
+            child: FilledButton.icon(
+              onPressed: onStartChat,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor:
+                    AppTheme.primaryColor,
+              ),
+              icon: const Icon(
+                Icons.chat_outlined,
+              ),
+              label: const Text(
+                'Start a Conversation',
+              ),
             ),
           ),
         ],
