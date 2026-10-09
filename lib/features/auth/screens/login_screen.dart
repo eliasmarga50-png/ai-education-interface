@@ -4,6 +4,7 @@ import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/pressable_scale.dart';
 import '../services/auth_controller.dart';
 
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.onCreateAccountTap});
 
