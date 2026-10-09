@@ -257,7 +257,10 @@ class _LessonContentScreenState extends State<LessonContentScreen>
               ),
             ],
           ),
-          body: ListView(
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
               _LessonProgressHeader(
@@ -399,7 +402,9 @@ class _LessonContentScreenState extends State<LessonContentScreen>
               const SizedBox(height: 30),
             ],
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }

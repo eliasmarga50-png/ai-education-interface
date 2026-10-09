@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/pressable_scale.dart';
 import '../../auth/services/auth_controller.dart';
 import '../../dashboard/services/dashboard_service.dart';
 import '../../dashboard/services/learning_activity_service.dart';
@@ -87,7 +88,10 @@ class ProfileScreen extends StatelessWidget {
               ),
             ],
           ),
-          body: ListView(
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: ListView(
             padding: const EdgeInsets.fromLTRB(
               20,
               10,
@@ -261,7 +265,9 @@ class ProfileScreen extends StatelessWidget {
               ),
             ],
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }
@@ -531,7 +537,7 @@ class _VerticalDivider extends StatelessWidget {
     return Container(
       width: 1,
       height: 45,
-      color: Colors.black12,
+      color: Theme.of(context).colorScheme.outlineVariant,
     );
   }
 }
@@ -572,50 +578,55 @@ class _ProfileMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(
-        bottom: 10,
-      ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 5,
-        ),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color:
-                AppTheme.primaryColor.withValues(
-              alpha: 0.08,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Semantics(
+        button: true,
+        label: '$title. $subtitle',
+        child: PressableScale(
+          onTap: onTap,
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 5,
+              ),
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(
+                    alpha: 0.08,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              title: Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(
+                  top: 3,
+                ),
+                child: Text(
+                  subtitle,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+              ),
+              onTap: onTap,
             ),
-            borderRadius:
-                BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icon,
-            color: AppTheme.primaryColor,
           ),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(
-            top: 3,
-          ),
-          child: Text(
-            subtitle,
-          ),
-        ),
-        trailing: const Icon(
-          Icons.chevron_right,
-        ),
-        onTap: onTap,
       ),
     );
   }

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/pressable_scale.dart';
 
 /// Visual state of one answer option.
-///
-/// While taking a quiz only [idle] and [selected] are used. The result
-/// screen's review uses [correct] and [incorrect] as well.
 enum QuizOptionState {
   idle,
   selected,
@@ -63,46 +61,54 @@ class QuizOptionTile extends StatelessWidget {
 
     final badgeFilled = state != QuizOptionState.idle;
 
-    return Material(
-      color: isHighlighted
-          ? accent.withValues(alpha: 0.08)
-          : Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: isHighlighted ? accent : scheme.outlineVariant,
-          width: isHighlighted ? 1.8 : 1.2,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    return Semantics(
+      button: onTap != null,
+      selected: state == QuizOptionState.selected,
+      label: 'Option $label: $text. ${state == QuizOptionState.selected ? "Selected" : ""}',
+      child: PressableScale(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
+        child: Material(
+          color: isHighlighted
+              ? accent.withValues(alpha: 0.08)
+              : Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(
+              color: isHighlighted ? accent : scheme.outlineVariant,
+              width: isHighlighted ? 1.8 : 1.2,
+            ),
           ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 15,
-                backgroundColor: badgeFilled
-                    ? accent
-                    : scheme.surfaceContainerHighest,
-                child: badgeChild,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  text,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: state == QuizOptionState.selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 15,
+                    backgroundColor: badgeFilled
+                        ? accent
+                        : scheme.surfaceContainerHighest,
+                    child: badgeChild,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: state == QuizOptionState.selected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                          ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/widgets/pressable_scale.dart';
 import '../models/quiz.dart';
 import '../models/quiz_result.dart';
 import '../services/quiz_progress_service.dart';
@@ -102,7 +103,10 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
         title: const Text('Quiz Results'),
       ),
       body: SafeArea(
-        child: ListView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             Card(
@@ -184,16 +188,19 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
 
             const SizedBox(height: 20),
 
-            SizedBox(
-              height: 54,
-              child: FilledButton.icon(
-                onPressed: _retry,
-                icon: const Icon(Icons.refresh),
-                label: const Text(
-                  'Retry Quiz',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+            PressableScale(
+              onTap: _retry,
+              child: SizedBox(
+                height: 54,
+                child: FilledButton.icon(
+                  onPressed: _retry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text(
+                    'Retry Quiz',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -201,24 +208,31 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
 
             const SizedBox(height: 12),
 
-            SizedBox(
-              height: 54,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _showReview = !_showReview;
-                  });
-                },
-                icon: Icon(
-                  _showReview
-                      ? Icons.visibility_off_outlined
-                      : Icons.fact_check_outlined,
-                ),
-                label: Text(
-                  _showReview ? 'Hide Review' : 'Review Answers',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+            PressableScale(
+              onTap: () {
+                setState(() {
+                  _showReview = !_showReview;
+                });
+              },
+              child: SizedBox(
+                height: 54,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showReview = !_showReview;
+                    });
+                  },
+                  icon: Icon(
+                    _showReview
+                        ? Icons.visibility_off_outlined
+                        : Icons.fact_check_outlined,
+                  ),
+                  label: Text(
+                    _showReview ? 'Hide Review' : 'Review Answers',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -255,7 +269,9 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

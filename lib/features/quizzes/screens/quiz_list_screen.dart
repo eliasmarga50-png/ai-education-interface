@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../shared/models/lesson.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/pressable_scale.dart';
 import '../../courses/data/course_data.dart';
 import '../../lessons/data/lesson_data.dart';
 import '../data/mock_quiz_data.dart';
@@ -26,8 +28,6 @@ class QuizListScreen extends StatelessWidget {
       for (final lesson in lessons) {
         final quiz = MockQuizData.quizForLesson(lesson.id);
 
-        // modulesForCourse falls back to Flutter for unknown courses, so
-        // skip anything already listed.
         if (quiz != null && seenQuizIds.add(quiz.id)) {
           entries.add(_QuizEntry(lesson: lesson, quiz: quiz));
         }
@@ -61,25 +61,41 @@ class QuizListScreen extends StatelessWidget {
       body: AnimatedBuilder(
         animation: QuizProgressService.instance,
         builder: (context, _) {
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
-            children: [
-              _SummaryCard(totalQuizzes: MockQuizData.quizzes.length),
+          if (groups.isEmpty) {
+            return const AppEmptyState(
+              icon: Icons.quiz_outlined,
+              title: 'No quizzes available',
+              message: 'Check back later for newly added quizzes.',
+            );
+          }
 
-              for (final group in groups) ...[
-                const SizedBox(height: 24),
-                Text(
-                  group.courseTitle,
-                  style: Theme.of(context).textTheme.titleLarge,
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: ListView(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
                 ),
-                const SizedBox(height: 10),
-                for (final entry in group.entries)
-                  _QuizTile(
-                    entry: entry,
-                    onTap: () => _openQuiz(context, entry.quiz),
-                  ),
-              ],
-            ],
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                children: [
+                  _SummaryCard(totalQuizzes: MockQuizData.quizzes.length),
+
+                  for (final group in groups) ...[
+                    const SizedBox(height: 28),
+                    Text(
+                      group.courseTitle,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    for (final entry in group.entries)
+                      _QuizTile(
+                        entry: entry,
+                        onTap: () => _openQuiz(context, entry.quiz),
+                      ),
+                  ],
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -202,27 +218,37 @@ class _QuizTile extends StatelessWidget {
             '(${score.bestPercentage.round()}%) · '
             '${score.attempts} ${score.attempts == 1 ? 'attempt' : 'attempts'}';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: passed
-              ? Colors.green.shade600
-              : theme.colorScheme.surfaceContainerHighest,
-          child: Icon(
-            passed ? Icons.check : Icons.quiz_outlined,
-            color: passed ? Colors.white : theme.colorScheme.onSurface,
-            size: 20,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Semantics(
+        button: true,
+        label: '${entry.lesson.title} quiz. $subtitle. Status: ${passed ? "Passed" : "Not yet passed"}',
+        child: PressableScale(
+          onTap: onTap,
+          child: Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              onTap: onTap,
+              leading: CircleAvatar(
+                backgroundColor: passed
+                    ? Colors.green.shade600
+                    : theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  passed ? Icons.check : Icons.quiz_outlined,
+                  color: passed ? Colors.white : theme.colorScheme.onSurface,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                entry.lesson.title,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(subtitle),
+              trailing: const Icon(Icons.chevron_right),
+            ),
           ),
         ),
-        title: Text(
-          entry.lesson.title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }

@@ -44,7 +44,10 @@ class LearningScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Learning'),
           ),
-          body: ListView(
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
               _CourseHeader(
@@ -74,7 +77,9 @@ class LearningScreen extends StatelessWidget {
               const SizedBox(height: 30),
             ],
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }

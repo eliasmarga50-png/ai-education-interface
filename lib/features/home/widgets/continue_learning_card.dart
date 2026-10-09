@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/pressable_scale.dart';
 import '../../dashboard/models/dashboard_models.dart';
 
 /// The hero card: the one thing to do next.
@@ -143,21 +144,27 @@ class ContinueLearningCard extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: isAllDone ? onBrowseCourses : onStart,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.primaryColor,
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    icon: Icon(
-                      isAllDone ? Icons.explore_outlined : Icons.play_arrow,
-                    ),
-                    label: Text(
-                      buttonText,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                  PressableScale(
+                    onTap: isAllDone ? onBrowseCourses : onStart,
+                    child: FilledButton.icon(
+                      onPressed: isAllDone ? onBrowseCourses : onStart,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppTheme.primaryColor,
+                        minimumSize: const Size(double.infinity, 50),
+                        elevation: 2,
+                        shadowColor: Colors.black26,
+                      ),
+                      icon: Icon(
+                        isAllDone ? Icons.explore_outlined : Icons.play_arrow_rounded,
+                        size: 22,
+                      ),
+                      label: Text(
+                        buttonText,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
