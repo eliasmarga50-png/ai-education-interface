@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/pressable_scale.dart';
 import '../services/auth_controller.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -148,25 +150,31 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: theme.colorScheme.error),
+                      AppErrorBanner(
+                        message: _errorMessage!,
+                        onDismiss: () {
+                          setState(() {
+                            _errorMessage = null;
+                          });
+                        },
                       ),
                     ],
                     const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: _isLoading ? null : _submit,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52),
+                    PressableScale(
+                      onTap: _isLoading ? null : _submit,
+                      child: FilledButton(
+                        onPressed: _isLoading ? null : _submit,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.5),
+                              )
+                            : const Text('Log In'),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2.5),
-                            )
-                          : const Text('Log In'),
                     ),
                     const SizedBox(height: 16),
                     Row(
