@@ -39,72 +39,77 @@ class CourseDetailsScreen extends StatelessWidget {
           ),
 
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _CourseTitleSection(course: course),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _CourseTitleSection(course: course),
 
-                  const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                  _CourseStats(course: course),
+                      _CourseStats(course: course),
 
-                  const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-                  const _SectionTitle(
-                    title: 'About this course',
+                      const _SectionTitle(
+                        title: 'About this course',
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      Text(
+                        course.description,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              height: 1.6,
+                            ),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      const _SectionTitle(
+                        title: 'What you will learn',
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      const _LearningPoint(
+                        icon: Icons.check_circle_outline,
+                        text: 'Understand the fundamentals step by step',
+                      ),
+
+                      const _LearningPoint(
+                        icon: Icons.check_circle_outline,
+                        text: 'Build practical projects while learning',
+                      ),
+
+                      const _LearningPoint(
+                        icon: Icons.check_circle_outline,
+                        text: 'Practice your knowledge with exercises',
+                      ),
+
+                      const _LearningPoint(
+                        icon: Icons.check_circle_outline,
+                        text: 'Develop skills you can use in real projects',
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      const _SectionTitle(
+                        title: 'Course content',
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      _CourseContent(course: course),
+
+                      const SizedBox(height: 100),
+                    ],
                   ),
-
-                  const SizedBox(height: 10),
-
-                  Text(
-                    course.description,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          height: 1.6,
-                        ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  const _SectionTitle(
-                    title: 'What you will learn',
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  const _LearningPoint(
-                    icon: Icons.check_circle_outline,
-                    text: 'Understand the fundamentals step by step',
-                  ),
-
-                  const _LearningPoint(
-                    icon: Icons.check_circle_outline,
-                    text: 'Build practical projects while learning',
-                  ),
-
-                  const _LearningPoint(
-                    icon: Icons.check_circle_outline,
-                    text: 'Practice your knowledge with exercises',
-                  ),
-
-                  const _LearningPoint(
-                    icon: Icons.check_circle_outline,
-                    text: 'Develop skills you can use in real projects',
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  const _SectionTitle(
-                    title: 'Course content',
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _CourseContent(course: course),
-
-                  const SizedBox(height: 100),
-                ],
+                ),
               ),
             ),
           ),
@@ -112,25 +117,30 @@ class CourseDetailsScreen extends StatelessWidget {
       ),
 
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-        child: SizedBox(
-          height: 54,
-          child: FilledButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:(context) => LearningScreen(
-                    course: course,
+        minimum: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: SizedBox(
+              height: 52,
+              child: FilledButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LearningScreen(
+                        course: course,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Start Learning',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              );
-            },
-            child: const Text(
-              'Start Learning',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ),
