@@ -88,7 +88,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                 ),
                 Text(
-                  profile.name,
+                  profile.name.isNotEmpty ? profile.name : 'there',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),

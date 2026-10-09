@@ -54,6 +54,8 @@ class _EditProfileScreenState
       return;
     }
 
+    // On web, image.path is a blob: URL that can be shown with Image.network.
+    // On native it is a file-system path. ProfileAvatar handles both cases.
     _profileController.updateAvatar(image.path);
 
     if (mounted) {
