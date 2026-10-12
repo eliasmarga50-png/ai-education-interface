@@ -1,10 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/storage/token_storage.dart';
+import '../../profile/services/profile_controller.dart';
 import '../models/auth_user.dart';
+import 'auth_api.dart';
 
 enum AuthStatus {
   /// App just started; saved session has not been read yet.
@@ -13,7 +18,7 @@ enum AuthStatus {
   /// Nobody is signed in.
   unauthenticated,
 
-  /// Account exists but the email is not verified yet.
+  /// Account exists but the email code has not been entered yet.
   needsVerification,
 
   /// Signed in and verified: the app can be shown.
@@ -23,13 +28,37 @@ enum AuthStatus {
 /// Single source of truth for authentication.
 ///
 /// AuthGate listens to this controller and decides which screen to show, so
-/// screens never navigate into the app by hand.
+/// screens never navigate into the app by hand. The public API is unchanged
+/// from the prototype except where a real server needs more (the email code).
 ///
-/// Prototype only: one account lives on this device, and email verification
-/// is simulated. Replace the bodies of register / logIn / verifyEmail /
-/// resetPassword with real API calls later; the rest of the app is unaffected.
+/// Every method that can fail returns null / false and puts a message that is
+/// safe to show in [lastError]; nothing here throws to the UI.
 class AuthController extends ChangeNotifier {
-  AuthController._();
+  AuthController._({
+    AuthApi? api,
+    TokenStorage? tokens,
+    ProfileController? profile,
+    bool listenForExpiredSession = true,
+  })  : _api = api ?? AuthApi.instance,
+        _tokens = tokens ?? TokenStorage.instance,
+        _profile = profile ?? ProfileController.instance {
+    if (listenForExpiredSession) {
+      ApiClient.instance.onSessionExpired = _handleSessionExpired;
+    }
+  }
+
+  /// Same behaviour with fake collaborators, for unit tests.
+  @visibleForTesting
+  AuthController.forTesting({
+    required AuthApi api,
+    required TokenStorage tokens,
+    required ProfileController profile,
+  }) : this._(
+          api: api,
+          tokens: tokens,
+          profile: profile,
+          listenForExpiredSession: false,
+        );
 
   static final AuthController instance = AuthController._();
 
@@ -37,15 +66,24 @@ class AuthController extends ChangeNotifier {
   /// second, disconnected controller. Prefer `AuthController.instance`.
   factory AuthController() => instance;
 
+  /// Cached signed-in user, so the app can open offline.
   static const _kUser = 'auth_user';
-  static const _kHash = 'auth_password_hash';
-  static const _kSession = 'auth_session_active';
 
-  static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  /// Account that registered but has not entered its email code yet.
+  static const _kPending = 'auth_pending_user';
+
+  static const _unexpected = 'Something went wrong. Please try again.';
+
+  final AuthApi _api;
+  final TokenStorage _tokens;
+  final ProfileController _profile;
 
   AuthStatus _status = AuthStatus.unknown;
   AuthUser? _user;
   String? _lastError;
+  String? _verificationNotice;
+  DateTime? _resendAvailableAt;
+  bool _initialized = false;
 
   AuthStatus get status => _status;
   bool get isLoggedIn => _status == AuthStatus.authenticated;
@@ -53,27 +91,31 @@ class AuthController extends ChangeNotifier {
   /// The signed-in user, or the user waiting to verify their email.
   AuthUser? get currentUser => _user;
 
-  /// Reason for the most recent failed register / logIn / verifyEmail call.
+  /// Reason for the most recent failed call.
   String? get lastError => _lastError;
 
-  /// Restores the saved session. Call once when the app starts.
+  /// Shown once on the verification screen (for example "we could not send the
+  /// email yet"). Null when everything went fine.
+  String? get verificationNotice => _verificationNotice;
+
+  /// When the "Resend code" button becomes available again.
+  DateTime? get resendAvailableAt => _resendAvailableAt;
+
+  // ---------------------------------------------------------------------
+  // Start-up
+  // ---------------------------------------------------------------------
+
+  /// Restores the saved session. Safe to call more than once.
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
+    if (_initialized) {
+      return;
+    }
+    _initialized = true;
 
-    final user = _readUser(prefs);
-    final hasPassword = prefs.getString(_kHash) != null;
-    final sessionActive = prefs.getBool(_kSession) ?? false;
-
-    if (user == null || !hasPassword) {
-      _user = null;
-      _status = AuthStatus.unauthenticated;
-    } else if (!user.isVerified) {
-      _user = user;
-      _status = AuthStatus.needsVerification;
-    } else if (sessionActive) {
-      _user = user;
-      _status = AuthStatus.authenticated;
-    } else {
+    try {
+      await _restoreSession();
+    } catch (_) {
+      // Unreadable storage must never leave the app on a spinner.
       _user = null;
       _status = AuthStatus.unauthenticated;
     }
@@ -81,162 +123,332 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Creates the account and moves to [AuthStatus.needsVerification].
-  /// Returns null on failure; read [lastError] for the reason.
+  Future<void> _restoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _tokens.load();
+
+    // The prototype kept a password hash on the device. The server owns
+    // passwords now, so remove the leftovers.
+    await prefs.remove('auth_password_hash');
+    await prefs.remove('auth_session_active');
+
+    if (_tokens.hasSession) {
+      final cached = _readUser(prefs, _kUser);
+
+      try {
+        // Refreshes the access token by itself if it has expired.
+        final fresh = await _api.me();
+        _user = fresh;
+        _status = AuthStatus.authenticated;
+        await _saveUser(prefs, _kUser, fresh);
+        await _bindProfile(fresh);
+      } on ApiException catch (e) {
+        if (e.isNetwork && cached != null) {
+          // Offline: let the user in with what we know; the next online
+          // request will refresh or sign them out.
+          _user = cached;
+          _status = AuthStatus.authenticated;
+          await _bindProfile(cached);
+        } else if (!e.isNetwork) {
+          await _tokens.clear();
+          await prefs.remove(_kUser);
+        }
+      }
+    }
+
+    if (_status == AuthStatus.unknown) {
+      final pending = _readUser(prefs, _kPending);
+      if (pending != null) {
+        _user = pending;
+        _status = AuthStatus.needsVerification;
+      } else {
+        _user = null;
+        _status = AuthStatus.unauthenticated;
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Sign up / verify
+  // ---------------------------------------------------------------------
+
+  /// Creates the account; the server emails a 6-digit code and the app moves
+  /// to [AuthStatus.needsVerification]. Returns null on failure.
   Future<AuthUser?> register({
     required String name,
     required String email,
     required String password,
   }) async {
-    final cleanName = name.trim();
-    final cleanEmail = email.trim().toLowerCase();
+    try {
+      final pending = await _api.register(
+        name: name.trim(),
+        email: email.trim(),
+        password: password,
+      );
 
-    if (cleanName.length < 2) {
-      return _fail('Name must be at least 2 characters.');
+      await _enterVerification(
+        pending.user,
+        resendAfterSeconds: pending.resendAfterSeconds,
+        codeSent: pending.codeSent,
+      );
+      return pending.user;
+    } on ApiException catch (e) {
+      return _fail(e);
+    } catch (_) {
+      return _failMessage(_unexpected);
     }
-    if (!_emailPattern.hasMatch(cleanEmail)) {
-      return _fail('Enter a valid email address.');
-    }
-    if (password.length < 8) {
-      return _fail('Password must be at least 8 characters.');
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-
-    final existing = _readUser(prefs);
-    if (existing != null && existing.email == cleanEmail) {
-      return _fail('An account with this email already exists. Please log in.');
-    }
-
-    final user = AuthUser(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: cleanName,
-      email: cleanEmail,
-      isVerified: false,
-    );
-
-    await _saveUser(prefs, user);
-    await prefs.setString(_kHash, _hash(cleanEmail, password));
-    await prefs.setBool(_kSession, false);
-
-    _user = user;
-    _lastError = null;
-    _status = AuthStatus.needsVerification;
-    notifyListeners();
-
-    return user;
   }
 
+  /// Checks the 6-digit [code] the user received. On success the user is
+  /// signed in. Returns null on failure (wrong code, expired, too many tries).
+  Future<AuthUser?> verifyEmail({required String code}) async {
+    final current = _user;
+    if (current == null) {
+      return _failMessage('No account is waiting for verification.');
+    }
+
+    try {
+      final session = await _api.verifyEmail(
+        email: current.email,
+        code: code.trim(),
+      );
+      await _startSession(session);
+      return session.user;
+    } on ApiException catch (e) {
+      return _fail(e);
+    } catch (_) {
+      return _failMessage(_unexpected);
+    }
+  }
+
+  /// Emails a new code. Returns false if it was refused (cooldown, limit...);
+  /// read [lastError] for the reason.
+  Future<bool> resendVerificationCode() async {
+    final current = _user;
+    if (current == null) {
+      _lastError = 'No account is waiting for verification.';
+      return false;
+    }
+
+    try {
+      final seconds = await _api.resendCode(email: current.email);
+      _setResendCooldown(seconds);
+      _lastError = null;
+      _verificationNotice = null;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _lastError = e.message;
+      if (e.retryAfter != null) {
+        _setResendCooldown(e.retryAfter!);
+        notifyListeners();
+      }
+      return false;
+    } catch (_) {
+      _lastError = _unexpected;
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Log in / out
+  // ---------------------------------------------------------------------
+
   /// Returns null on failure; read [lastError] for the reason. An account
-  /// that has not verified its email moves to [AuthStatus.needsVerification].
+  /// that has not verified its email moves to [AuthStatus.needsVerification]
+  /// and gets a fresh code.
   Future<AuthUser?> logIn({
     required String email,
     required String password,
   }) async {
-    final cleanEmail = email.trim().toLowerCase();
-
-    final prefs = await SharedPreferences.getInstance();
-    final user = _readUser(prefs);
-    final savedHash = prefs.getString(_kHash);
-
-    if (user == null || savedHash == null) {
-      return _fail('No account found. Please create one first.');
+    try {
+      final session = await _api.login(
+        email: email.trim(),
+        password: password,
+      );
+      await _startSession(session);
+      return session.user;
+    } on ApiException catch (e) {
+      if (e.code == 'EMAIL_NOT_VERIFIED') {
+        final serverEmail = e.details['email'] as String?;
+        await _enterVerification(
+          AuthUser(
+            id: '',
+            name: '',
+            email: serverEmail ?? email.trim().toLowerCase(),
+            isVerified: false,
+          ),
+          resendAfterSeconds: e.retryAfter ?? 60,
+          codeSent: e.details['codeSent'] == true,
+        );
+        _lastError = e.message;
+        return null;
+      }
+      return _fail(e);
+    } catch (_) {
+      return _failMessage(_unexpected);
     }
-    if (user.email != cleanEmail ||
-        _hash(cleanEmail, password) != savedHash) {
-      return _fail('Incorrect email or password.');
-    }
-
-    _user = user;
-    _lastError = null;
-
-    if (user.isVerified) {
-      await prefs.setBool(_kSession, true);
-      _status = AuthStatus.authenticated;
-    } else {
-      _status = AuthStatus.needsVerification;
-    }
-
-    notifyListeners();
-    return user;
   }
 
-  /// Simulated: trusts the "I Verified My Email" button. A real backend would
-  /// confirm the link was opened. Returns null if nobody is waiting.
-  Future<AuthUser?> verifyEmail() async {
-    final current = _user;
-
-    if (current == null) {
-      return _fail('No account is waiting for verification.');
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final verified = current.copyWith(isVerified: true);
-
-    await _saveUser(prefs, verified);
-    await prefs.setBool(_kSession, true);
-
-    _user = verified;
-    _lastError = null;
-    _status = AuthStatus.authenticated;
-    notifyListeners();
-
-    return verified;
-  }
-
-  /// Simulated: no email is sent. Returns true for any well-formed address so
-  /// the screen never reveals whether an account exists.
-  Future<bool> resetPassword({required String email}) async {
-    if (!_emailPattern.hasMatch(email.trim().toLowerCase())) {
-      return false;
-    }
-
-    // The real email service will be connected later.
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    return true;
-  }
-
-  /// Ends the session but keeps the account so the user can log back in.
+  /// Ends the session on this device straight away (the server is told in
+  /// the background, so logging out works offline too).
   Future<void> logOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kSession, false);
+    final refreshToken = _tokens.refreshToken;
 
+    await _tokens.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kUser);
+
+    _profile.unbind();
     _user = null;
     _lastError = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
+
+    if (refreshToken != null) {
+      unawaited(
+        _api.logout(refreshToken: refreshToken).catchError((Object _) {}),
+      );
+    }
   }
 
-  /// Throws away an account that never verified its email (for example one
-  /// registered with a mistyped address) so the user can start over.
-  /// Unlike [logOut], this deletes the saved account, so a restart does not
-  /// bring the user back to the verification screen.
+  /// Leaves the verification screen (for example after a mistyped email) so
+  /// the user can start over. The server removes abandoned unverified
+  /// accounts by itself after a few days.
   Future<void> discardUnverifiedAccount() async {
     final current = _user;
-
-    // Never delete a verified account from here; that is what logOut is for.
     if (current == null || current.isVerified) {
       return;
     }
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kUser);
-    await prefs.remove(_kHash);
-    await prefs.remove(_kSession);
+    await prefs.remove(_kPending);
 
     _user = null;
     _lastError = null;
+    _verificationNotice = null;
+    _resendAvailableAt = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
   }
 
-  AuthUser? _fail(String message) {
+  // ---------------------------------------------------------------------
+  // Password reset
+  // ---------------------------------------------------------------------
+
+  /// Asks the server to email a reset code. The server answers the same way
+  /// whether or not the account exists, so true only means "request accepted".
+  Future<bool> requestPasswordReset({required String email}) async {
+    try {
+      await _api.forgotPassword(email: email.trim());
+      _lastError = null;
+      return true;
+    } on ApiException catch (e) {
+      _lastError = e.message;
+      return false;
+    } catch (_) {
+      _lastError = _unexpected;
+      return false;
+    }
+  }
+
+  /// Sets a new password using the emailed [code]. The user is not signed in
+  /// by this; they log in with the new password afterwards.
+  Future<bool> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _api.resetPassword(
+        email: email.trim(),
+        code: code.trim(),
+        newPassword: newPassword,
+      );
+      _lastError = null;
+      return true;
+    } on ApiException catch (e) {
+      _lastError = e.message;
+      return false;
+    } catch (_) {
+      _lastError = _unexpected;
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Internals
+  // ---------------------------------------------------------------------
+
+  Future<void> _startSession(AuthSession session) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await _tokens.save(
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    );
+    await _saveUser(prefs, _kUser, session.user);
+    await prefs.remove(_kPending);
+
+    _user = session.user;
+    _lastError = null;
+    _verificationNotice = null;
+    _resendAvailableAt = null;
+    _status = AuthStatus.authenticated;
+
+    await _bindProfile(session.user);
+    notifyListeners();
+  }
+
+  Future<void> _enterVerification(
+    AuthUser user, {
+    required int resendAfterSeconds,
+    required bool codeSent,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await _saveUser(prefs, _kPending, user);
+
+    _user = user;
+    _lastError = null;
+    _verificationNotice = codeSent
+        ? null
+        : 'We could not send the email yet. Tap "Resend code" in a moment.';
+    _setResendCooldown(resendAfterSeconds);
+    _status = AuthStatus.needsVerification;
+    notifyListeners();
+  }
+
+  void _setResendCooldown(int seconds) {
+    _resendAvailableAt = DateTime.now().add(Duration(seconds: seconds));
+  }
+
+  /// Hands the profile screens to the account that just signed in.
+  Future<void> _bindProfile(AuthUser user) {
+    return _profile.bindToUser(
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+    );
+  }
+
+  /// The refresh token was rejected (expired, revoked, password was reset).
+  void _handleSessionExpired() {
+    _profile.unbind();
+    _user = null;
+    _status = AuthStatus.unauthenticated;
+    _lastError = 'Your session has expired. Please log in again.';
+    notifyListeners();
+  }
+
+  AuthUser? _fail(ApiException error) => _failMessage(error.message);
+
+  AuthUser? _failMessage(String message) {
     _lastError = message;
     return null;
   }
 
-  AuthUser? _readUser(SharedPreferences prefs) {
-    final raw = prefs.getString(_kUser);
+  AuthUser? _readUser(SharedPreferences prefs, String key) {
+    final raw = prefs.getString(key);
     if (raw == null) {
       return null;
     }
@@ -244,15 +456,12 @@ class AuthController extends ChangeNotifier {
     try {
       return AuthUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } catch (_) {
-      // Corrupt or old-format data: treat as "no account".
+      // Corrupt or old-format data (for example the prototype's): ignore it.
       return null;
     }
   }
 
-  Future<void> _saveUser(SharedPreferences prefs, AuthUser user) {
-    return prefs.setString(_kUser, jsonEncode(user.toJson()));
+  Future<void> _saveUser(SharedPreferences prefs, String key, AuthUser user) {
+    return prefs.setString(key, jsonEncode(user.toJson()));
   }
-
-  String _hash(String email, String password) =>
-      sha256.convert(utf8.encode('$email:$password')).toString();
 }

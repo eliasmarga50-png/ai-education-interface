@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/pressable_scale.dart';
+import '../../../core/validation/validators.dart';
 import '../services/auth_controller.dart';
 
 
@@ -25,6 +26,11 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
 
   Future<void> _submit() async {
+    // Enter on the keyboard bypasses the disabled button, so guard here too.
+    if (_isLoading) {
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -105,16 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         labelText: 'Email',
                         prefixIcon: Icon(Icons.email_outlined),
                       ),
-                      validator: (value) {
-                        final text = value?.trim() ?? '';
-                        if (text.isEmpty) {
-                          return 'Enter your email';
-                        }
-                        if (!text.contains('@')) {
-                          return 'Enter a valid email';
-                        }
-                        return null;
-                      },
+                      validator: Validators.email,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

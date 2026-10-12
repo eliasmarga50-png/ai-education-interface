@@ -20,10 +20,36 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   final AuthController _authController = AuthController.instance;
 
+  AuthStatus? _lastStatus;
+
   @override
   void initState() {
     super.initState();
+    _authController.addListener(_closePushedScreensWhenSignedOut);
     _authController.initialize();
+  }
+
+  @override
+  void dispose() {
+    _authController.removeListener(_closePushedScreensWhenSignedOut);
+    super.dispose();
+  }
+
+  /// Screens opened with Navigator.push (edit profile, lessons, dialogs...) live
+  /// above this widget. When the session ends (logout, expired session) they
+  /// would stay on screen on top of the sign-in flow, so close them all.
+  void _closePushedScreensWhenSignedOut() {
+    final status = _authController.status;
+    final wasAuthenticated = _lastStatus == AuthStatus.authenticated;
+    _lastStatus = status;
+
+    if (wasAuthenticated && status != AuthStatus.authenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      });
+    }
   }
 
   @override

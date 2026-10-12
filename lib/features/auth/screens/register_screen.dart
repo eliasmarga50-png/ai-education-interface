@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/validation/validators.dart';
 import '../services/auth_controller.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -38,6 +39,11 @@ super.dispose();
 }
 
 Future<void> _submit() async {
+// Enter on the keyboard bypasses the disabled button, so guard here too.
+if (_isSubmitting) {
+  return;
+}
+
 FocusScope.of(context).unfocus();
 
 
@@ -139,19 +145,7 @@ return Scaffold(
                     hintText: 'Enter your name',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (value) {
-                    final name = value?.trim() ?? '';
-
-                    if (name.isEmpty) {
-                      return 'Please enter your name.';
-                    }
-
-                    if (name.length < 2) {
-                      return 'Name must be at least 2 characters.';
-                    }
-
-                    return null;
-                  },
+                  validator: Validators.name,
                 ),
 
                 const SizedBox(height: 16),
@@ -168,19 +162,7 @@ return Scaffold(
                     hintText: 'you@example.com',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) {
-                    final email = value?.trim() ?? '';
-
-                    if (email.isEmpty) {
-                      return 'Please enter your email.';
-                    }
-
-                    if (!_isValidEmail(email)) {
-                      return 'Please enter a valid email.';
-                    }
-
-                    return null;
-                  },
+                  validator: Validators.email,
                 ),
 
                 const SizedBox(height: 16),
@@ -211,19 +193,7 @@ return Scaffold(
                       ),
                     ),
                   ),
-                  validator: (value) {
-                    final password = value ?? '';
-
-                    if (password.isEmpty) {
-                      return 'Please enter a password.';
-                    }
-
-                    if (password.length < 8) {
-                      return 'Password must be at least 8 characters.';
-                    }
-
-                    return null;
-                  },
+                  validator: Validators.newPassword,
                 ),
 
                 const SizedBox(height: 16),
@@ -256,17 +226,10 @@ return Scaffold(
                       ),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm your password.';
-                    }
-
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match.';
-                    }
-
-                    return null;
-                  },
+                  validator: (value) => Validators.confirmPassword(
+                    value,
+                    _passwordController.text,
+                  ),
                 ),
 
                 const SizedBox(height: 24),
@@ -307,12 +270,6 @@ return Scaffold(
 );
 
 
-}
-
-bool _isValidEmail(String email) {
-return RegExp(
-r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-).hasMatch(email);
 }
 
 void _showMessage(String message) {
