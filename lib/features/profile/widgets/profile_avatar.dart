@@ -19,8 +19,10 @@ class ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initials = fallbackText.isNotEmpty
-        ? fallbackText[0].toUpperCase()
+    // runes (not [0]) keeps characters outside the BMP intact.
+    final trimmed = fallbackText.trim();
+    final initials = trimmed.isNotEmpty
+        ? String.fromCharCode(trimmed.runes.first).toUpperCase()
         : '?';
 
     // No image set — show initials avatar.
@@ -40,7 +42,7 @@ class ProfileAvatar extends StatelessWidget {
             width: radius * 2,
             height: radius * 2,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 _InitialsAvatar(radius: radius, initials: initials),
           ),
         ),

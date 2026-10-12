@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-
+import '../../../core/validation/validators.dart';
 import '../services/profile_controller.dart';
 import '../widgets/profile_avatar.dart';
 
@@ -42,37 +42,80 @@ class _EditProfileScreenState
         TextEditingController(text: profile.bio);
   }
 
-  Future<void> _pickAvatar() async {
-    final image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 1200,
-      maxHeight: 1200,
-    );
+  bool _isSaving = false;
+  bool _isPickingAvatar = false;
 
-    if (image == null) {
+  Future<void> _pickAvatar() async {
+    if (_isPickingAvatar) {
       return;
     }
+    _isPickingAvatar = true;
 
-    // On web, image.path is a blob: URL that can be shown with Image.network.
-    // On native it is a file-system path. ProfileAvatar handles both cases.
-    _profileController.updateAvatar(image.path);
+    try {
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+        maxHeight: 1200,
+      );
 
-    if (mounted) {
-      setState(() {});
+      if (image == null) {
+        return;
+      }
+
+      // The controller copies the photo to permanent storage (on phones the
+      // picked file is only a temporary cache file).
+      final saved = await _profileController.updateAvatar(image.path);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!saved) {
+        _showMessage('We could not save your photo. Please try again.');
+      }
+    } catch (_) {
+      if (mounted) {
+        _showMessage(
+          'We could not open your photos. Check the permission and try again.',
+        );
+      }
+    } finally {
+      _isPickingAvatar = false;
     }
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
+    // The AppBar button and the bottom button both call this.
+    if (_isSaving) {
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    _profileController.updateProfile(
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      bio: _bioController.text.trim(),
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isSaving = true;
+    });
+
+    final saved = await _profileController.updateProfile(
+      name: _nameController.text,
+      bio: _bioController.text,
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!saved) {
+      setState(() {
+        _isSaving = false;
+      });
+      _showMessage('Your profile could not be saved. Please log in again.');
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -83,6 +126,12 @@ class _EditProfileScreenState
     );
 
     Navigator.pop(context);
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -101,7 +150,7 @@ class _EditProfileScreenState
         title: const Text('Edit Profile'),
         actions: [
           TextButton(
-            onPressed: _saveProfile,
+            onPressed: _isSaving ? null : _saveProfile,
             child: const Text('Save'),
           ),
         ],
@@ -183,6 +232,7 @@ class _EditProfileScreenState
 
             TextFormField(
               controller: _nameController,
+              textCapitalization: TextCapitalization.words,
               textInputAction:
                   TextInputAction.next,
               decoration: const InputDecoration(
@@ -191,45 +241,23 @@ class _EditProfileScreenState
                   Icons.person_outline,
                 ),
               ),
-              validator: (value) {
-                if (value == null ||
-                    value.trim().isEmpty) {
-                  return 'Please enter your name.';
-                }
-
-                return null;
-              },
+              validator: Validators.name,
             ),
 
             const SizedBox(height: 16),
 
             TextFormField(
               controller: _emailController,
+              readOnly: true,
               keyboardType:
                   TextInputType.emailAddress,
-              textInputAction:
-                  TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Email address',
+                helperText: 'Your email is tied to your account.',
                 prefixIcon: Icon(
                   Icons.email_outlined,
                 ),
               ),
-              validator: (value) {
-                final email =
-                    value?.trim() ?? '';
-
-                if (email.isEmpty) {
-                  return 'Please enter your email.';
-                }
-
-                if (!email.contains('@') ||
-                    !email.contains('.')) {
-                  return 'Please enter a valid email.';
-                }
-
-                return null;
-              },
             ),
 
             const SizedBox(height: 16),
@@ -256,7 +284,7 @@ class _EditProfileScreenState
             const SizedBox(height: 20),
 
             FilledButton.icon(
-              onPressed: _saveProfile,
+              onPressed: _isSaving ? null : _saveProfile,
               icon: const Icon(
                 Icons.save_outlined,
               ),
