@@ -17,7 +17,7 @@ export class DatabaseService implements OnModuleDestroy {
       idleTimeoutMillis: 30_000,
       statement_timeout: 5_000,
     });
-    this.pool.on('error', (err) => this.logger.error(`Idle database client error: ${err.message}`));
+    this.pool.on('error', (err: Error) => this.logger.error(`Idle database client error: ${err.message}`));
   }
 
   query<T extends QueryResultRow>(text: string, params: unknown[] = []): Promise<QueryResult<T>> {
