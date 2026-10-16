@@ -1,4 +1,4 @@
-import { Client } from 'pg';
+import { Client } from '../node_modules/@types/pg';
 
 /** Loads .env if present; real environment variables always win. */
 export function loadEnv(): void {
