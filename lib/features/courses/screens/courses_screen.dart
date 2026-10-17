@@ -4,10 +4,12 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/course.dart';
 import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_shimmer.dart';
 import '../../../shared/widgets/app_spacing.dart';
 import '../../../shared/widgets/pressable_scale.dart';
 import '../../../shared/widgets/responsive_layout.dart';
-import '../data/course_data.dart';
+import '../services/course_repository.dart';
 import 'course_details_screen.dart';
 
 class CoursesScreen extends StatefulWidget {
@@ -18,16 +20,17 @@ class CoursesScreen extends StatefulWidget {
 }
 
 class _CoursesScreenState extends State<CoursesScreen> {
+  final CourseRepository _repo = CourseRepository.instance;
   String _selectedCategory = 'All';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  final List<String> _categories = const [
-    'All',
-    'Programming',
-    'Design',
-    'AI',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame, so listeners elsewhere are not notified mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _repo.ensureLoaded());
+  }
 
   @override
   void dispose() {
@@ -35,14 +38,27 @@ class _CoursesScreenState extends State<CoursesScreen> {
     super.dispose();
   }
 
-  List<Course> get _filteredCourses {
-    return CourseData.courses.where((course) {
-      final matchesCategory = _selectedCategory == 'All' ||
-          course.category.toLowerCase() == _selectedCategory.toLowerCase();
-      final matchesSearch = _searchQuery.isEmpty ||
-          course.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          course.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          course.category.toLowerCase().contains(_searchQuery.toLowerCase());
+  /// Chips come from the data, so a new category on the server shows up by itself.
+  List<String> _categoriesFor(List<Course> courses) {
+    final seen = <String>[];
+    for (final course in courses) {
+      if (course.category.isNotEmpty && !seen.contains(course.category)) {
+        seen.add(course.category);
+      }
+    }
+    return ['All', ...seen];
+  }
+
+  List<Course> _filter(List<Course> courses, String category) {
+    final query = _searchQuery.toLowerCase();
+
+    return courses.where((course) {
+      final matchesCategory = category == 'All' ||
+          course.category.toLowerCase() == category.toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          course.title.toLowerCase().contains(query) ||
+          course.description.toLowerCase().contains(query) ||
+          course.category.toLowerCase().contains(query);
       return matchesCategory && matchesSearch;
     }).toList();
   }
@@ -67,7 +83,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filteredCourses;
     final isWide = !ResponsiveBreakpoints.isMobile(context);
 
     return Scaffold(
@@ -86,15 +101,52 @@ class _CoursesScreenState extends State<CoursesScreen> {
           ],
         ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AppSpacing.maxContentWidth),
+      body: ListenableBuilder(
+        listenable: _repo,
+        builder: (context, _) => _buildBody(context, isWide),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, bool isWide) {
+    // Nothing to show yet: skeleton while loading, error state if it failed.
+    if (!_repo.hasLoaded) {
+      final error = _repo.error;
+      if (error != null && !_repo.isLoading) {
+        return AppErrorState(
+          title: "Couldn't load courses",
+          message: error.message,
+          onRetry: () => _repo.refresh(),
+        );
+      }
+      return _CourseListSkeleton(isWide: isWide);
+    }
+
+    final categories = _categoriesFor(_repo.courses);
+    final selected =
+        categories.contains(_selectedCategory) ? _selectedCategory : 'All';
+    final filtered = _filter(_repo.courses, selected);
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppSpacing.maxContentWidth),
+        child: RefreshIndicator(
+          onRefresh: _repo.refresh,
           child: ListView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
-            padding: isWide ? AppSpacing.pagePaddingTablet : AppSpacing.pagePaddingMobile,
+            padding: isWide
+                ? AppSpacing.pagePaddingTablet
+                : AppSpacing.pagePaddingMobile,
             children: [
+              if (_repo.error != null) ...[
+                _StaleBanner(
+                  message: _repo.error!.message,
+                  onRetry: () => _repo.refresh(),
+                ),
+                const SizedBox(height: 16),
+              ],
               _SearchField(
                 controller: _searchController,
                 query: _searchQuery,
@@ -114,8 +166,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
               const _SectionTitle(title: 'Categories'),
               const SizedBox(height: 12),
               _CategoryList(
-                categories: _categories,
-                selectedCategory: _selectedCategory,
+                categories: categories,
+                selectedCategory: selected,
                 onCategorySelected: _selectCategory,
               ),
               const SizedBox(height: 28),
@@ -130,14 +182,22 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-
-              if (filtered.isEmpty)
+              if (_repo.courses.isEmpty)
+                AppEmptyState(
+                  icon: Icons.school_outlined,
+                  title: 'No courses available yet',
+                  message: 'New courses will show up here soon. '
+                      'Pull down to refresh.',
+                  actionLabel: 'Refresh',
+                  onAction: () => _repo.refresh(),
+                )
+              else if (filtered.isEmpty)
                 AppEmptyState(
                   icon: Icons.search_off_rounded,
                   title: 'No courses found',
                   message: _searchQuery.isNotEmpty
                       ? 'No courses match "$_searchQuery". Try searching for another topic or resetting filters.'
-                      : 'No courses found in category "$_selectedCategory".',
+                      : 'No courses found in category "$selected".',
                   actionLabel: 'Reset filters',
                   onAction: _resetFilters,
                 )
@@ -169,6 +229,80 @@ class _CoursesScreenState extends State<CoursesScreen> {
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown above the list when a refresh failed but saved courses are still shown.
+class _StaleBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _StaleBanner({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+        child: Row(
+          children: [
+            Icon(Icons.cloud_off_outlined, color: theme.colorScheme.error),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Showing saved courses. $message',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CourseListSkeleton extends StatelessWidget {
+  final bool isWide;
+
+  const _CourseListSkeleton({required this.isWide});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppSpacing.maxContentWidth),
+        child: Padding(
+          padding: isWide
+              ? AppSpacing.pagePaddingTablet
+              : AppSpacing.pagePaddingMobile,
+          child: Semantics(
+            label: 'Loading courses',
+            child: AppShimmer(
+              child: Column(
+                children: List.generate(
+                  4,
+                  (_) => Container(
+                    height: 96,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
