@@ -1,6 +1,6 @@
 import '../../../shared/models/course.dart';
 import '../../ai_tutor/services/tutor_controller.dart';
-import '../../courses/data/course_data.dart';
+import '../../courses/services/course_repository.dart;
 import '../../lessons/data/lesson_data.dart';
 import '../../lessons/services/learning_progress_service.dart';
 import '../../profile/services/profile_controller.dart';
@@ -31,7 +31,7 @@ class DashboardService {
   static List<LessonRef> allLessons() {
     final refs = <LessonRef>[];
 
-    for (final course in CourseData.courses) {
+    for (final course in CourseRepository.instance.courses) {
       final lessons = LessonData.modulesForCourse(course.title)
           .expand((module) => module.lessons);
 
@@ -56,7 +56,7 @@ class DashboardService {
   static List<CourseProgressInfo> courseProgress() {
     final progress = LearningProgressService.instance;
 
-    return CourseData.courses.map((course) {
+    return CourseRepository.instance.courses.map((course) {
       final lessons = LessonData.modulesForCourse(course.title)
           .expand((module) => module.lessons)
           .toList();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../courses/services/course_repository.dart';
 
 import '../../../core/navigation/main_tabs.dart';
 import '../../../shared/models/course.dart';
