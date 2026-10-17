@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/models/lesson.dart';
 import '../../../shared/widgets/app_empty_state.dart';
 import '../../../shared/widgets/pressable_scale.dart';
-import '../../courses/data/course_data.dart';
+import '../../courses/services/course_repository.dart';
 import '../../lessons/data/lesson_data.dart';
 import '../data/mock_quiz_data.dart';
 import '../models/quiz.dart';
@@ -19,7 +19,7 @@ class QuizListScreen extends StatelessWidget {
     final groups = <_CourseGroup>[];
     final seenQuizIds = <String>{};
 
-    for (final course in CourseData.courses) {
+    for (final course in CourseRepository.instance.courses) {
       final entries = <_QuizEntry>[];
 
       final lessons = LessonData.modulesForCourse(course.title)
@@ -50,17 +50,20 @@ class QuizListScreen extends StatelessWidget {
     );
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
-    final groups = _buildGroups();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quizzes'),
       ),
       body: AnimatedBuilder(
-        animation: QuizProgressService.instance,
+        animation: Listenable.merge([
+          QuizProgressService.instance,
+          CourseRepository.instance,
+        ]),
         builder: (context, _) {
+          final groups = _buildGroups();
+
           if (groups.isEmpty) {
             return const AppEmptyState(
               icon: Icons.quiz_outlined,

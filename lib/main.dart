@@ -8,6 +8,7 @@ import 'features/dashboard/services/learning_activity_service.dart';
 import 'features/lessons/services/learning_progress_service.dart';
 import 'features/profile/services/profile_controller.dart';
 import 'features/quizzes/services/quiz_progress_service.dart';
+import 'features/courses/services/course_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,8 @@ Future<void> main() async {
 
   // Load saved AI Tutor conversations.
   await TutorController.instance.initialize();
+    // Show the saved course catalogue immediately, then refresh it from the API.
+  await CourseRepository.instance.initialize();
 
   runApp(const MyApp());
 }

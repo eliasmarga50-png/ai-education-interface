@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../courses/services/course_repository.dart';
-
 import '../../../core/navigation/main_tabs.dart';
 import '../../../shared/models/course.dart';
 import '../../../shared/widgets/app_spacing.dart';
@@ -55,11 +54,11 @@ class HomeScreen extends StatelessWidget {
         LearningActivityService.instance,
         QuizProgressService.instance,
         TutorController.instance,
+        CourseRepository.instance,
       ]),
       builder: (context, _) {
         final profile = ProfileController.instance.profile;
         final snapshot = DashboardService.snapshot();
-
         return Scaffold(
           drawer: _AppDrawer(profile: profile, snapshot: snapshot),
           appBar: AppBar(
@@ -135,11 +134,9 @@ class HomeScreen extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Side Drawer
 // ---------------------------------------------------------------------------
-
 class _AppDrawer extends StatelessWidget {
   final dynamic profile;
   final DashboardSnapshot snapshot;
-
   const _AppDrawer({required this.profile, required this.snapshot});
 
   void _go(BuildContext context, int tab) {
@@ -151,7 +148,6 @@ class _AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
     return Drawer(
       child: SafeArea(
         child: Column(
@@ -202,10 +198,8 @@ class _AppDrawer extends StatelessWidget {
                 ),
               ),
             ),
-
             Divider(height: 1, color: colorScheme.outlineVariant),
             const SizedBox(height: 8),
-
             // Navigation items
             _DrawerItem(
               icon: Icons.home_rounded,
@@ -232,12 +226,9 @@ class _AppDrawer extends StatelessWidget {
                 );
               },
             ),
-
             const Spacer(),
-
             Divider(height: 1, color: colorScheme.outlineVariant),
             const SizedBox(height: 8),
-
             // Bottom actions
             _DrawerItem(
               icon: Icons.palette_outlined,
@@ -266,7 +257,6 @@ class _DrawerItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-
   const _DrawerItem({
     required this.icon,
     required this.label,
@@ -290,10 +280,8 @@ class _DrawerItem extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Home content
 // ---------------------------------------------------------------------------
-
 class HomeContent extends StatelessWidget {
   final DashboardSnapshot snapshot;
-
   const HomeContent({
     super.key,
     required this.snapshot,
@@ -331,7 +319,6 @@ class HomeContent extends StatelessWidget {
 
   void _askTutor(BuildContext context, String question) {
     final ref = snapshot.continueTarget.ref;
-
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -364,9 +351,7 @@ class HomeContent extends StatelessWidget {
     final target = snapshot.continueTarget;
     final targetRef = target.ref;
     final isWide = !ResponsiveBreakpoints.isMobile(context);
-
     var index = 0;
-
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppSpacing.maxContentWidth),
@@ -388,9 +373,7 @@ class HomeContent extends StatelessWidget {
                 onBrowseCourses: () => MainTabs.go(MainTabs.courses),
               ),
             ),
-
             const SizedBox(height: 18),
-
             FadeSlideIn(
               index: index++,
               child: QuickActions(
@@ -399,9 +382,7 @@ class HomeContent extends StatelessWidget {
                 onQuizzes: () => _openQuizzes(context),
               ),
             ),
-
             const SizedBox(height: AppSpacing.section),
-
             FadeSlideIn(
               index: index++,
               child: Column(
@@ -426,9 +407,7 @@ class HomeContent extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(height: AppSpacing.section),
-
             FadeSlideIn(
               index: index++,
               child: Column(
@@ -448,7 +427,6 @@ class HomeContent extends StatelessWidget {
                 ],
               ),
             ),
-
             if (snapshot.recentLessons.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.section),
               FadeSlideIn(
@@ -466,9 +444,7 @@ class HomeContent extends StatelessWidget {
                 ),
               ),
             ],
-
             const SizedBox(height: 20),
-
             FadeSlideIn(
               index: index++,
               child: AiTutorShortcutCard(
@@ -478,7 +454,6 @@ class HomeContent extends StatelessWidget {
                 onOpenChat: () => _openChat(context),
               ),
             ),
-
             if (snapshot.recommendations.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.section),
               FadeSlideIn(
@@ -510,7 +485,6 @@ class HomeContent extends StatelessWidget {
 class _StreakChip extends StatelessWidget {
   final int streak;
   final bool activeToday;
-
   const _StreakChip({
     required this.streak,
     required this.activeToday,
@@ -521,7 +495,6 @@ class _StreakChip extends StatelessWidget {
     final theme = Theme.of(context);
     final hasStreak = streak > 0;
     const flame = Color(0xFFEA580C);
-
     return Semantics(
       label: 'Learning streak: $streak days. ${activeToday ? "Active today" : "Study today to keep streak"}',
       button: true,
