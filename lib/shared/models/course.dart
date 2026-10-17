@@ -1,14 +1,4 @@
 class Course {
-  final String title;
-  final String description;
-  final String category;
-  final String level;
-  final int lessons;
-  final double rating;
-  final String imageUrl;
-
-  const Course({
-    required this.ticlass Course {
   final String id;
   final String slug;
   final String title;
@@ -69,12 +59,4 @@ class Course {
       'resourceCount': resourceCount,
     };
   }
-}le,
-    required this.description,
-    required this.category,
-    required this.level,
-    required this.lessons,
-    required this.rating,
-    required this.imageUrl,
-  });
 }

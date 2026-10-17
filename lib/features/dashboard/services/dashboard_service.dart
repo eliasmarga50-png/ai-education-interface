@@ -1,6 +1,6 @@
 import '../../../shared/models/course.dart';
 import '../../ai_tutor/services/tutor_controller.dart';
-import '../../courses/services/course_repository.dart;
+import '../../courses/services/course_repository.dart';
 import '../../lessons/data/lesson_data.dart';
 import '../../lessons/services/learning_progress_service.dart';
 import '../../profile/services/profile_controller.dart';
