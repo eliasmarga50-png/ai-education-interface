@@ -1,19 +1,114 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/course.dart';
+import '../../../shared/widgets/app_empty_state.dart';
+import '../../../shared/widgets/app_error_state.dart';
+import '../../../shared/widgets/app_shimmer.dart';
 import '../../lessons/screens/learning_screen.dart';
+import '../models/course_resource.dart';
+import '../services/course_repository.dart';
+import '../widgets/resource_tile.dart';
 
-class CourseDetailsScreen extends StatelessWidget {
+typedef LinkLauncher = Future<bool> Function(Uri uri);
+
+Future<bool> _openInBrowser(Uri uri) =>
+    launchUrl(uri, mode: LaunchMode.externalApplication);
+
+class CourseDetailsScreen extends StatefulWidget {
   final Course course;
+
+  /// Injectable for tests; defaults to the app-wide repository.
+  final CourseRepository? repository;
+  final LinkLauncher launcher;
 
   const CourseDetailsScreen({
     super.key,
     required this.course,
+    this.repository,
+    this.launcher = _openInBrowser,
   });
 
   @override
+  State<CourseDetailsScreen> createState() => _CourseDetailsScreenState();
+}
+
+class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
+  late final CourseRepository _repo =
+      widget.repository ?? CourseRepository.instance;
+
+  // The course from the list is shown at once; the API answer replaces it.
+  late Course _course = widget.course;
+  List<CourseResource> _resources = const [];
+  bool _loading = true;
+  ApiException? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final results = await Future.wait<Object>([
+        _repo.fetchCourse(widget.course.id),
+        _repo.fetchResources(widget.course.id),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _course = results[0] as Course;
+        _resources = results[1] as List<CourseResource>;
+        _loading = false;
+        _error = null;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+        _loading = false;
+      });
+    }
+  }
+
+  void _retry() {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    _load();
+  }
+
+  Future<void> _open(CourseResource resource) async {
+    final uri = resource.uri;
+    var opened = false;
+
+    if (uri != null && (uri.scheme == 'https' || uri.scheme == 'http')) {
+      try {
+        opened = await widget.launcher(uri);
+      } catch (_) {
+        opened = false;
+      }
+    }
+
+    if (opened || !mounted) return;
+
+    await Clipboard.setData(ClipboardData(text: resource.url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Couldn't open the link. It was copied instead."),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final course = _course;
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -37,75 +132,52 @@ class CourseDetailsScreen extends StatelessWidget {
               ),
             ),
           ),
-
           SliverToBoxAdapter(
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _CourseTitleSection(course: course),
-
                       const SizedBox(height: 24),
-
                       _CourseStats(course: course),
-
                       const SizedBox(height: 28),
-
-                      const _SectionTitle(
-                        title: 'About this course',
-                      ),
-
+                      const _SectionTitle(title: 'About this course'),
                       const SizedBox(height: 10),
-
                       Text(
                         course.description,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               height: 1.6,
                             ),
                       ),
-
                       const SizedBox(height: 28),
-
-                      const _SectionTitle(
-                        title: 'What you will learn',
-                      ),
-
+                      if (course.outcomes.isNotEmpty) ...[
+                        const _SectionTitle(title: 'What you will learn'),
+                        const SizedBox(height: 12),
+                        for (final outcome in course.outcomes)
+                          _LearningPoint(
+                            icon: Icons.check_circle_outline,
+                            text: outcome,
+                          ),
+                        const SizedBox(height: 28),
+                      ],
+                      const _SectionTitle(title: 'Learning resources'),
                       const SizedBox(height: 12),
-
-                      const _LearningPoint(
-                        icon: Icons.check_circle_outline,
-                        text: 'Understand the fundamentals step by step',
+                      _ResourcesSection(
+                        loading: _loading,
+                        error: _error,
+                        resources: _resources,
+                        onRetry: _retry,
+                        onOpen: _open,
                       ),
-
-                      const _LearningPoint(
-                        icon: Icons.check_circle_outline,
-                        text: 'Build practical projects while learning',
-                      ),
-
-                      const _LearningPoint(
-                        icon: Icons.check_circle_outline,
-                        text: 'Practice your knowledge with exercises',
-                      ),
-
-                      const _LearningPoint(
-                        icon: Icons.check_circle_outline,
-                        text: 'Develop skills you can use in real projects',
-                      ),
-
                       const SizedBox(height: 28),
-
-                      const _SectionTitle(
-                        title: 'Course content',
-                      ),
-
+                      const _SectionTitle(title: 'Course content'),
                       const SizedBox(height: 12),
-
                       _CourseContent(course: course),
-
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -115,7 +187,6 @@ class CourseDetailsScreen extends StatelessWidget {
           ),
         ],
       ),
-
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(20, 10, 20, 14),
         child: Center(
@@ -146,6 +217,69 @@ class CourseDetailsScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ResourcesSection extends StatelessWidget {
+  final bool loading;
+  final ApiException? error;
+  final List<CourseResource> resources;
+  final VoidCallback onRetry;
+  final ValueChanged<CourseResource> onOpen;
+
+  const _ResourcesSection({
+    required this.loading,
+    required this.error,
+    required this.resources,
+    required this.onRetry,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Semantics(
+        label: 'Loading learning resources',
+        child: AppShimmer(
+          child: Column(
+            children: List.generate(
+              3,
+              (_) => Container(
+                height: 84,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (error != null) {
+      return AppErrorState(
+        title: "Couldn't load resources",
+        message: error!.message,
+        onRetry: onRetry,
+      );
+    }
+
+    if (resources.isEmpty) {
+      return const AppEmptyState(
+        icon: Icons.menu_book_outlined,
+        title: 'No resources yet',
+        message: 'Learning resources for this course will appear here.',
+      );
+    }
+
+    return Column(
+      children: [
+        for (final resource in resources)
+          ResourceTile(resource: resource, onOpen: () => onOpen(resource)),
+      ],
     );
   }
 }
