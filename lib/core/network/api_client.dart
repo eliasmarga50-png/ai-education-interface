@@ -32,8 +32,13 @@ class ApiClient {
     return _send('POST', path, body: body, auth: auth);
   }
 
-  Future<Map<String, dynamic>> get(String path, {bool auth = false}) {
-    return _send('GET', path, auth: auth);
+  Future<Map<String, dynamic>> get(
+    String path, {
+    bool auth = false,
+    String? baseUrl,
+    Map<String, String>? query,
+  }) {
+    return _send('GET', path, auth: auth, baseUrl: baseUrl, query: query);
   }
 
   Future<Map<String, dynamic>> _send(
@@ -42,8 +47,14 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool auth = false,
     bool retried = false,
+    String? baseUrl,
+    Map<String, String>? query,
+    String? tokenUsed, // Tracks which token was used for this specific attempt
   }) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    var uri = Uri.parse('baseUrl ?? ApiConfig.baseUrlpath');
+    if (query != null && query.isNotEmpty) {
+      uri = uri.replace(queryParameters: query);
+    }
 
     // Passwords and tokens must never travel over plain HTTP in a real build.
     if (kReleaseMode && uri.scheme != 'https') {
@@ -53,15 +64,21 @@ class ApiClient {
             'Set API_BASE_URL to an https:// address.',
       );
     }
+    
     final headers = <String, String>{
-      'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
+    // Only attach Content-Type if the request actually sends a body payload
+    if (method != 'GET' && body != null) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    String? currentToken;
     if (auth) {
-      final token = TokenStorage.instance.accessToken;
-      if (token != null) {
-        headers['Authorization'] = 'Bearer $token';
+      currentToken = TokenStorage.instance.accessToken;
+      if (currentToken != null) {
+        headers['Authorization'] = 'Bearer \$currentToken';
       }
     }
 
@@ -103,10 +120,36 @@ class ApiClient {
     final code = error['code'] as String? ?? 'SERVER_ERROR';
 
     // Access token expired: refresh once, then repeat the same request.
-    if (auth && !retried && response.statusCode == 401 && code == 'UNAUTHORIZED') {
-      final refreshed = await _refreshTokens();
+    if (auth && response.statusCode == 401 && code == 'UNAUTHORIZED') {
+      // If we already retried with the freshest token and still got a 401, give up.
+      final latestToken = TokenStorage.instance.accessToken;
+      if (retried && currentToken == latestToken) {
+        throw ApiException(
+          code: code,
+          message: error['message'] as String? ?? 'Session expired.',
+          statusCode: response.statusCode,
+          details: error,
+        );
+      }
+
+      // If a concurrent request already updated the token while this was running,
+      // skip refreshing and jump straight to the retry attempt.
+      bool refreshed = true;
+      if (currentToken == latestToken) {
+        refreshed = await _refreshTokens();
+      }
+
       if (refreshed) {
-        return _send(method, path, body: body, auth: auth, retried: true);
+        return _send(
+          method,
+          path,
+          body: body,
+          auth: auth,
+          retried: true,
+          baseUrl: baseUrl, 
+          query: query,    
+          tokenUsed: TokenStorage.instance.accessToken,
+        );
       }
     }
 
@@ -144,7 +187,7 @@ class ApiClient {
       return true;
     } on ApiException catch (e) {
       // Offline is not a reason to sign the user out; a rejected token is.
-      if (!e.isNetwork) {
+      if (e.code != 'NETWORK_ERROR') {
         await TokenStorage.instance.clear();
         onSessionExpired?.call();
       }
