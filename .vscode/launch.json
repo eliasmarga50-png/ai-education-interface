@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ai_education_interface (phone, adb reverse)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=API_BASE_URL=http://localhost:3000",
+        "--dart-define=COURSES_API_URL=http://localhost:3001"
+      ]
+    }
+  ]
+}
