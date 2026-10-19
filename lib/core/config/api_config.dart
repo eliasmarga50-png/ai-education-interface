@@ -19,9 +19,9 @@ class ApiConfig {
       return _override;
     }
 
-    // The Android emulator reaches my computer through 10.0.2.2.
+        // Physical phone or emulator, with: adb reverse tcp:3000 tcp:3000
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3000';
+      return 'http://127.0.0.1:3000';
     }
 
     // iOS simulator, desktop and Flutter web.
@@ -34,8 +34,8 @@ class ApiConfig {
       return _coursesOverride;
     }
 
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3001';
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://127.0.0.1:3001';
     }
 
     return 'http://localhost:3001';

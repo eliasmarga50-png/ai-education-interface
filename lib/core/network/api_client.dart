@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kReleaseMode;
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
@@ -93,7 +93,10 @@ class ApiClient {
         code: 'NETWORK_ERROR',
         message: 'The server took too long to respond. Please try again.',
       );
-    } catch (_) {
+        } catch (e) {
+      if (kDebugMode) {
+        debugPrint('ApiClient: $method $uri failed: $e');
+      }
       throw const ApiException(
         code: 'NETWORK_ERROR',
         message: "Can't reach the server. Check your connection and try again.",
