@@ -51,7 +51,8 @@ class ApiClient {
     Map<String, String>? query,
     String? tokenUsed, // Tracks which token was used for this specific attempt
   }) async {
-    var uri = Uri.parse('baseUrl ?? ApiConfig.baseUrlpath');
+        final base = baseUrl ?? ApiConfig.baseUrl;
+    var uri = Uri.parse(base + path);
     if (query != null && query.isNotEmpty) {
       uri = uri.replace(queryParameters: query);
     }

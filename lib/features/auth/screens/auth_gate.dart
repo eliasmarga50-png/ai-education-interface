@@ -4,8 +4,6 @@ import '../../home/screens/main_shell.dart';
 import '../services/auth_controller.dart';
 import 'splash_screen.dart';
 import 'verification_screen.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
-import '../../profile/services/profile_controller.dart';
 
 /// Root of the app. Rebuilds whenever [AuthController] changes and shows the
 /// screen that matches the current [AuthStatus], so no auth screen ever has
@@ -20,27 +18,13 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-    // Debug-only shortcut: flutter run --dart-define=BYPASS_AUTH=true
-  static const bool _bypassAuth = bool.fromEnvironment('BYPASS_AUTH');
-  bool get _skipAuth => kDebugMode && _bypassAuth;
   final AuthController _authController = AuthController.instance;
 
   AuthStatus? _lastStatus;
 
-    @override
+  @override
   void initState() {
     super.initState();
-
-    if (_skipAuth) {
-      // Give the Profile tab a local demo account so it is not blank.
-      ProfileController.instance.bindToUser(
-        userId: 'dev-bypass',
-        name: 'Demo Learner',
-        email: 'demo@example.com',
-      );
-      return;
-    }
-
     _authController.addListener(_closePushedScreensWhenSignedOut);
     _authController.initialize();
   }
@@ -70,9 +54,6 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-        if (_skipAuth) {
-      return const MainShell();
-    }
     return AnimatedBuilder(
       animation: _authController,
       builder: (context, _) {
