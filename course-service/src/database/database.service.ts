@@ -4,8 +4,13 @@ import { Pool, QueryResult, QueryResultRow } from 'pg';
 
 import { AppConfig } from '../config/configuration';
 
+/** Anything that can run a query: the pool itself, or one connection inside a transaction. */
+export interface Queryable {
+  query<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>>;
+}
+
 @Injectable()
-export class DatabaseService implements OnModuleDestroy {
+export class DatabaseService implements Queryable, OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
   private readonly pool: Pool;
 
@@ -23,6 +28,22 @@ export class DatabaseService implements OnModuleDestroy {
 
   query<T extends QueryResultRow>(text: string, params: unknown[] = []): Promise<QueryResult<T>> {
     return this.pool.query<T>(text, params);
+  }
+
+  /** Runs [work] on one connection between BEGIN and COMMIT; any error rolls everything back. */
+  async transaction<T>(work: (tx: Queryable) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await work({ query: (text, params = []) => client.query(text, params) });
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async ping(): Promise<void> {
