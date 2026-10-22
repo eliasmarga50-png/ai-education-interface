@@ -4,6 +4,7 @@ import '../../../core/navigation/main_tabs.dart';
 import '../../../shared/widgets/responsive_layout.dart';
 import '../../courses/screens/courses_screen.dart';
 import '../../ai_tutor/screens/ai_tutor_screen.dart';
+import '../../quizzes/services/quiz_progress_service.dart';
 import '../../profile/screens/profile_screen.dart';
 import 'home_screen.dart';
 
@@ -29,6 +30,8 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     MainTabs.index.value = MainTabs.home;
     MainTabs.index.addListener(_onTabRequested);
+    // Quiz results live on the server; load them once the student is signed in.
+    QuizProgressService.instance.refresh();
   }
 
   @override
