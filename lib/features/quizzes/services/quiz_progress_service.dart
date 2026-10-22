@@ -1,185 +1,96 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../dashboard/services/learning_activity_service.dart';
-import '../../lessons/services/learning_progress_service.dart';
+import '../../../core/network/api_exception.dart';
+import '../../auth/services/auth_controller.dart';
+import '../models/quiz_performance.dart';
 import '../models/quiz_result.dart';
+import 'quizzes_api.dart';
 
-/// The best result a user has achieved on one quiz, plus how often they
-/// have tried it.
-class QuizScore {
-  final String lessonId;
-  final int bestCorrect;
-  final int totalQuestions;
-  final int attempts;
-
-  const QuizScore({
-    required this.lessonId,
-    required this.bestCorrect,
-    required this.totalQuestions,
-    required this.attempts,
-  });
-
-  double get bestPercentage {
-    if (totalQuestions == 0) {
-      return 0;
-    }
-
-    return (bestCorrect / totalQuestions) * 100;
-  }
-
-  bool get passed {
-    return bestPercentage >= QuizProgressService.passingPercentage;
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'lessonId': lessonId,
-      'bestCorrect': bestCorrect,
-      'totalQuestions': totalQuestions,
-      'attempts': attempts,
-    };
-  }
-
-  factory QuizScore.fromJson(Map<String, dynamic> json) {
-    return QuizScore(
-      lessonId: json['lessonId'] as String,
-      bestCorrect: (json['bestCorrect'] as num).toInt(),
-      totalQuestions: (json['totalQuestions'] as num).toInt(),
-      attempts: (json['attempts'] as num).toInt(),
-    );
-  }
-}
-
-/// Keeps quiz scores for the whole app and saves them on the device.
+/// The student's quiz results for the whole app.
 ///
-/// Passing a quiz also marks its lesson complete in
-/// [LearningProgressService], which is how quizzes feed the course progress
-/// bars.
+/// The scores are calculated and saved by the backend; this class only holds
+/// the latest copy the server sent so Home, Profile, Courses and the quiz list
+/// can show it. Results are never kept on the device, and a copy that belongs
+/// to a different signed-in student is ignored.
 class QuizProgressService extends ChangeNotifier {
-  QuizProgressService._();
+  QuizProgressService._({QuizzesApi? api}) : _api = api ?? HttpQuizzesApi();
 
   static final QuizProgressService instance = QuizProgressService._();
 
-  /// Score (in percent) needed to pass a quiz. 2 of 3 questions passes.
-  static const double passingPercentage = 60;
+  /// Same behaviour with a fake API, for tests.
+  @visibleForTesting
+  QuizProgressService.forTesting(QuizzesApi api) : _api = api;
 
-  static const String _storageKey = 'quiz_scores_v1';
+  final QuizzesApi _api;
 
-  final Map<String, QuizScore> _scores = {};
+  QuizPerformance? _performance;
+  String? _ownerId;
+  bool _isLoading = false;
+  ApiException? _error;
+  Future<void>? _inFlight;
 
-  /// Loads saved scores. Call once before runApp.
-  Future<void> initialize() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
+  String? get _currentUserId => AuthController.instance.currentUser?.id;
 
-      if (raw != null) {
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+  QuizPerformance get performance {
+    final current = _performance;
+    if (current == null || _ownerId == null || _ownerId != _currentUserId) {
+      return QuizPerformance.empty;
+    }
+    return current;
+  }
 
-        decoded.forEach((quizId, value) {
-          _scores[quizId] = QuizScore.fromJson(
-            value as Map<String, dynamic>,
-          );
-        });
-      }
-    } catch (error) {
-      debugPrint('QUIZ PROGRESS → could not load scores: $error');
-      _scores.clear();
+  bool get isLoading => _isLoading;
+
+  /// The last refresh failure, or null.
+  ApiException? get error => _error;
+
+  int get totalQuizzes => performance.totalQuizzes;
+
+  int get quizzesPassed => performance.quizzesPassed;
+
+  int get totalAttempts => performance.totalAttempts;
+
+  double get averageBestPercentage => performance.averageBestScore ?? 0;
+
+  Understanding? get understanding => performance.understanding;
+
+  ScopePerformance? scopeFor(String courseId, String? resourceId) {
+    return performance.scopeFor(courseId, resourceId);
+  }
+
+  CoursePerformance? courseFor(String courseId) {
+    return performance.courseFor(courseId);
+  }
+
+  /// Loads the student's results from the server. One request at a time.
+  Future<void> refresh() {
+    return _inFlight ??= _load().whenComplete(() => _inFlight = null);
+  }
+
+  Future<void> _load() async {
+    final userId = _currentUserId;
+    if (userId == null) {
+      return;
     }
 
-    // Lesson completion is not saved yet, so re-apply it from passed quizzes.
-    for (final score in _scores.values) {
-      if (score.passed) {
-        LearningProgressService.instance.markCompleted(score.lessonId);
-      }
-    }
-
+    _isLoading = true;
+    _error = null;
     notifyListeners();
-  }
 
-  QuizScore? scoreFor(String quizId) {
-    return _scores[quizId];
-  }
-
-  bool isPassed(String quizId) {
-    return _scores[quizId]?.passed ?? false;
-  }
-
-  int get quizzesPassed {
-    return _scores.values.where((score) => score.passed).length;
-  }
-
-  int get totalAttempts {
-    return _scores.values.fold(0, (sum, score) => sum + score.attempts);
-  }
-
-  /// Average of the best score on every quiz that has been attempted.
-  double get averageBestPercentage {
-    if (_scores.isEmpty) {
-      return 0;
-    }
-
-    final total = _scores.values.fold<double>(
-      0,
-      (sum, score) => sum + score.bestPercentage,
-    );
-
-    return total / _scores.length;
-  }
-
-  /// Records one finished attempt and returns true when it passed.
-  Future<bool> recordResult(
-    QuizResult result, {
-    required String lessonId,
-  }) async {
-    final previous = _scores[result.quizId];
-
-    var bestCorrect = result.correctAnswers;
-    var totalQuestions = result.totalQuestions;
-
-    // Keep the old best when this attempt did not beat it.
-    if (previous != null &&
-        previous.bestPercentage >= result.percentage) {
-      bestCorrect = previous.bestCorrect;
-      totalQuestions = previous.totalQuestions;
-    }
-
-    _scores[result.quizId] = QuizScore(
-      lessonId: lessonId,
-      bestCorrect: bestCorrect,
-      totalQuestions: totalQuestions,
-      attempts: (previous?.attempts ?? 0) + 1,
-    );
-
-    // Taking a quiz counts toward the daily streak.
-    LearningActivityService.instance.recordActivity();
-
-    final passed = result.percentage >= passingPercentage;
-
-    if (passed) {
-      LearningProgressService.instance.markCompleted(lessonId);
-    }
-
-    notifyListeners();
-    await _save();
-
-    return passed;
-  }
-
-  Future<void> _save() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final encoded = jsonEncode(
-        _scores.map((quizId, score) => MapEntry(quizId, score.toJson())),
+      final fresh = await _api.getPerformance();
+      _performance = fresh;
+      _ownerId = userId;
+    } on ApiException catch (e) {
+      _error = e;
+    } catch (_) {
+      _error = const ApiException(
+        code: 'INVALID_RESPONSE',
+        message: 'The server sent an unexpected response. Please try again.',
       );
-
-      await prefs.setString(_storageKey, encoded);
-    } catch (error) {
-      debugPrint('QUIZ PROGRESS → could not save scores: $error');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }
