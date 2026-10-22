@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../quizzes/models/quiz_performance.dart';
+import '../../quizzes/widgets/understanding_badge.dart';
 import '../models/course_resource.dart';
 
 class ResourceTile extends StatelessWidget {
   final CourseResource resource;
   final VoidCallback onOpen;
 
+  /// Opens the quiz for this resource. The quiz button is hidden when null.
+  final VoidCallback? onTakeQuiz;
+
+  /// The student's results on this resource's quiz, if they have taken it.
+  final ScopePerformance? performance;
+
   const ResourceTile({
     super.key,
     required this.resource,
     required this.onOpen,
+    this.onTakeQuiz,
+    this.performance,
   });
 
   IconData get _icon {
@@ -82,6 +92,30 @@ class ResourceTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium,
                         ),
+                        if (onTakeQuiz != null) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: onTakeQuiz,
+                                icon: const Icon(Icons.quiz_outlined, size: 18),
+                                label: Text(
+                                  performance == null
+                                      ? 'Take quiz'
+                                      : 'Retake quiz',
+                                ),
+                              ),
+                              if (performance != null)
+                                UnderstandingBadge(
+                                  understanding: performance!.understanding,
+                                  percent: performance!.lastScore,
+                                ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
