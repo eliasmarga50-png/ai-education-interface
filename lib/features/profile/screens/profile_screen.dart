@@ -6,7 +6,6 @@ import '../../auth/services/auth_controller.dart';
 import '../../dashboard/services/dashboard_service.dart';
 import '../../dashboard/services/learning_activity_service.dart';
 import '../../lessons/services/learning_progress_service.dart';
-import '../../quizzes/data/mock_quiz_data.dart';
 import '../../quizzes/screens/quiz_list_screen.dart';
 import '../../quizzes/services/quiz_progress_service.dart';
 import 'appearance_screen.dart';
@@ -387,7 +386,7 @@ class _QuizStatsCard extends StatelessWidget {
       animation: QuizProgressService.instance,
       builder: (context, child) {
         final service = QuizProgressService.instance;
-        final total = MockQuizData.quizzes.length;
+        final total = service.totalQuizzes;
 
         final subtitle = service.totalAttempts == 0
             ? '$total quizzes available'
