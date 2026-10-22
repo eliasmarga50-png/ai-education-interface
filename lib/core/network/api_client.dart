@@ -28,8 +28,9 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool auth = false,
+    String? baseUrl,
   }) {
-    return _send('POST', path, body: body, auth: auth);
+    return _send('POST', path, body: body, auth: auth, baseUrl: baseUrl);
   }
 
   Future<Map<String, dynamic>> get(
@@ -79,7 +80,7 @@ class ApiClient {
     if (auth) {
       currentToken = TokenStorage.instance.accessToken;
       if (currentToken != null) {
-        headers['Authorization'] = 'Bearer \$currentToken';
+        headers['Authorization'] = 'Bearer $currentToken';
       }
     }
 
