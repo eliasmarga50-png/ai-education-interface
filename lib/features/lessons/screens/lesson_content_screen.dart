@@ -7,8 +7,6 @@ import '../../ai_tutor/models/tutor_context.dart';
 import '../../ai_tutor/screens/chat_screen.dart';
 import '../../ai_tutor/services/tutor_controller.dart';
 import '../../dashboard/services/learning_activity_service.dart';
-import '../../quizzes/data/mock_quiz_data.dart';
-import '../../quizzes/models/quiz.dart';
 import '../../quizzes/screens/quiz_screen.dart';
 import '../../quizzes/services/quiz_progress_service.dart';
 import '../data/lesson_data.dart';
@@ -33,7 +31,6 @@ class _LessonContentScreenState extends State<LessonContentScreen>
     with WidgetsBindingObserver {
   late final List<CourseModule> _modules;
   late final List<Lesson> _allLessons;
-  late final Quiz? _quiz;
 
   // Counts time on this lesson while the app is in the foreground.
   final Stopwatch _studyTimer = Stopwatch();
@@ -48,8 +45,6 @@ class _LessonContentScreenState extends State<LessonContentScreen>
     _allLessons = _modules
         .expand((module) => module.lessons)
         .toList();
-
-    _quiz = MockQuizData.quizForLesson(widget.lesson.id);
 
     WidgetsBinding.instance.addObserver(this);
     _studyTimer.start();
@@ -156,11 +151,14 @@ class _LessonContentScreenState extends State<LessonContentScreen>
     );
   }
 
-  void _openQuiz(Quiz quiz) {
+  void _openQuiz() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => QuizScreen(quiz: quiz),
+        builder: (context) => QuizScreen(
+          courseId: widget.course.id,
+          title: widget.course.title,
+        ),
       ),
     );
   }
@@ -373,14 +371,12 @@ class _LessonContentScreenState extends State<LessonContentScreen>
 
               const SizedBox(height: 30),
 
-              if (_quiz case final quiz?) ...[
-                _QuizSection(
-                  quiz: quiz,
-                  onStart: () => _openQuiz(quiz),
-                ),
+              _QuizSection(
+                courseId: widget.course.id,
+                onStart: _openQuiz,
+              ),
 
-                const SizedBox(height: 30),
-              ],
+              const SizedBox(height: 30),
 
               _CompletionSection(
                 isCompleted: _isCompleted,
@@ -621,11 +617,11 @@ class _TutorSection extends StatelessWidget {
 }
 
 class _QuizSection extends StatelessWidget {
-  final Quiz quiz;
+  final String courseId;
   final VoidCallback onStart;
 
   const _QuizSection({
-    required this.quiz,
+    required this.courseId,
     required this.onStart,
   });
 
@@ -644,14 +640,12 @@ class _QuizSection extends StatelessWidget {
         AnimatedBuilder(
           animation: QuizProgressService.instance,
           builder: (context, child) {
-            final score = QuizProgressService.instance.scoreFor(quiz.id);
+            final score = QuizProgressService.instance.scopeFor(courseId, null);
             final passed = score?.passed ?? false;
 
             final subtitle = score == null
-                ? '${quiz.questions.length} questions · '
-                    'pass with ${QuizProgressService.passingPercentage.round()}%'
-                : 'Best: ${score.bestCorrect}/${score.totalQuestions} '
-                    '(${score.bestPercentage.round()}%) · '
+                ? 'Questions built from this course and its resources.'
+                : 'Best: ${score.bestScore.round()}% · '
                     '${passed ? 'Passed' : 'Not passed yet'}';
 
             final accent =
@@ -680,7 +674,7 @@ class _QuizSection extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Lesson Quiz',
+                                'Course Quiz',
                                 style: theme.textTheme.titleMedium,
                               ),
                               const SizedBox(height: 2),
