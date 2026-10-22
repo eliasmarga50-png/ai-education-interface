@@ -4,7 +4,6 @@ import '../../courses/services/course_repository.dart';
 import '../../lessons/data/lesson_data.dart';
 import '../../lessons/services/learning_progress_service.dart';
 import '../../profile/services/profile_controller.dart';
-import '../../quizzes/data/mock_quiz_data.dart';
 import '../../quizzes/services/quiz_progress_service.dart';
 import '../models/dashboard_models.dart';
 import 'learning_activity_service.dart';
@@ -139,7 +138,7 @@ class DashboardService {
       completedLessons: completedLessons,
       totalLessons: lessonRefs.length,
       quizzesPassed: quizzes.quizzesPassed,
-      totalQuizzes: MockQuizData.quizzes.length,
+      totalQuizzes: quizzes.totalQuizzes,
       quizAverage:
           quizzes.totalAttempts == 0 ? null : quizzes.averageBestPercentage,
       courses: courses,
