@@ -1,56 +1,35 @@
 import 'package:flutter/material.dart';
 
-import '../../../shared/models/lesson.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../shared/models/course.dart';
 import '../../../shared/widgets/app_empty_state.dart';
-import '../../../shared/widgets/pressable_scale.dart';
 import '../../courses/services/course_repository.dart';
-import '../../lessons/data/lesson_data.dart';
-import '../data/mock_quiz_data.dart';
-import '../models/quiz.dart';
+import '../models/quiz_performance.dart';
 import '../services/quiz_progress_service.dart';
+import '../services/quizzes_api.dart';
+import '../widgets/understanding_badge.dart';
 import 'quiz_screen.dart';
 
-/// Every quiz in the app, grouped by course, with the user's best scores.
-class QuizListScreen extends StatelessWidget {
+/// Every course with its quizzes (one for the course, one per resource) and
+/// the student's results. The quizzes of a course load when it is opened.
+class QuizListScreen extends StatefulWidget {
   const QuizListScreen({super.key});
 
-  /// Course title -> the (lesson, quiz) pairs that exist for that course.
-  List<_CourseGroup> _buildGroups() {
-    final groups = <_CourseGroup>[];
-    final seenQuizIds = <String>{};
+  @override
+  State<QuizListScreen> createState() => _QuizListScreenState();
+}
 
-    for (final course in CourseRepository.instance.courses) {
-      final entries = <_QuizEntry>[];
+class _QuizListScreenState extends State<QuizListScreen> {
+  final QuizzesApi _api = HttpQuizzesApi();
 
-      final lessons = LessonData.modulesForCourse(course.title)
-          .expand((module) => module.lessons);
-
-      for (final lesson in lessons) {
-        final quiz = MockQuizData.quizForLesson(lesson.id);
-
-        if (quiz != null && seenQuizIds.add(quiz.id)) {
-          entries.add(_QuizEntry(lesson: lesson, quiz: quiz));
-        }
-      }
-
-      if (entries.isNotEmpty) {
-        groups.add(_CourseGroup(courseTitle: course.title, entries: entries));
-      }
-    }
-
-    return groups;
+  @override
+  void initState() {
+    super.initState();
+    CourseRepository.instance.ensureLoaded();
+    QuizProgressService.instance.refresh();
   }
 
-  void _openQuiz(BuildContext context, Quiz quiz) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => QuizScreen(quiz: quiz),
-      ),
-    );
-  }
-
-    @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -58,44 +37,36 @@ class QuizListScreen extends StatelessWidget {
       ),
       body: AnimatedBuilder(
         animation: Listenable.merge([
-          QuizProgressService.instance,
           CourseRepository.instance,
+          QuizProgressService.instance,
         ]),
         builder: (context, _) {
-          final groups = _buildGroups();
+          final courses = CourseRepository.instance.courses;
+          final progress = QuizProgressService.instance;
 
-          if (groups.isEmpty) {
+          if (courses.isEmpty) {
             return const AppEmptyState(
               icon: Icons.quiz_outlined,
-              title: 'No quizzes available',
-              message: 'Check back later for newly added quizzes.',
+              title: 'No quizzes yet',
+              message: 'Quizzes are created from the courses once they load.',
             );
           }
 
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 820),
+              constraints: const BoxConstraints(maxWidth: 760),
               child: ListView(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                padding: const EdgeInsets.all(20),
                 children: [
-                  _SummaryCard(totalQuizzes: MockQuizData.quizzes.length),
-
-                  for (final group in groups) ...[
-                    const SizedBox(height: 28),
-                    Text(
-                      group.courseTitle,
-                      style: Theme.of(context).textTheme.titleLarge,
+                  _SummaryCard(progress: progress),
+                  const SizedBox(height: 20),
+                  for (final course in courses)
+                    _CourseQuizzes(
+                      key: ValueKey(course.id),
+                      course: course,
+                      api: _api,
+                      courseResult: progress.courseFor(course.id),
                     ),
-                    const SizedBox(height: 12),
-                    for (final entry in group.entries)
-                      _QuizTile(
-                        entry: entry,
-                        onTap: () => _openQuiz(context, entry.quiz),
-                      ),
-                  ],
                 ],
               ),
             ),
@@ -106,60 +77,36 @@ class QuizListScreen extends StatelessWidget {
   }
 }
 
-class _QuizEntry {
-  final Lesson lesson;
-  final Quiz quiz;
-
-  const _QuizEntry({
-    required this.lesson,
-    required this.quiz,
-  });
-}
-
-class _CourseGroup {
-  final String courseTitle;
-  final List<_QuizEntry> entries;
-
-  const _CourseGroup({
-    required this.courseTitle,
-    required this.entries,
-  });
-}
-
 class _SummaryCard extends StatelessWidget {
-  final int totalQuizzes;
+  final QuizProgressService progress;
 
-  const _SummaryCard({
-    required this.totalQuizzes,
-  });
+  const _SummaryCard({required this.progress});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final service = QuizProgressService.instance;
+    final understanding = progress.understanding;
 
     return Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Row(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SummaryStat(
-              value: '${service.quizzesPassed}/$totalQuizzes',
-              label: 'Passed',
-              color: theme.colorScheme.primary,
+            Text('Your progress', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              progress.totalAttempts == 0
+                  ? 'Take a quiz after using a course resource to see how well you understood it.'
+                  : '${progress.quizzesPassed} of ${progress.totalQuizzes} quizzes passed · '
+                      'average best score ${progress.averageBestPercentage.round()}%',
+              style: theme.textTheme.bodyMedium,
             ),
-            _SummaryStat(
-              value: service.totalAttempts == 0
-                  ? '--'
-                  : '${service.averageBestPercentage.round()}%',
-              label: 'Avg. best',
-              color: Colors.green.shade600,
-            ),
-            _SummaryStat(
-              value: '${service.totalAttempts}',
-              label: 'Attempts',
-              color: Colors.orange.shade700,
-            ),
+            if (understanding != null) ...[
+              const SizedBox(height: 10),
+              UnderstandingBadge(understanding: understanding),
+            ],
           ],
         ),
       ),
@@ -167,33 +114,124 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _SummaryStat extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
+class _CourseQuizzes extends StatefulWidget {
+  final Course course;
+  final QuizzesApi api;
+  final CoursePerformance? courseResult;
 
-  const _SummaryStat({
-    required this.value,
-    required this.label,
-    required this.color,
+  const _CourseQuizzes({
+    super.key,
+    required this.course,
+    required this.api,
+    required this.courseResult,
   });
+
+  @override
+  State<_CourseQuizzes> createState() => _CourseQuizzesState();
+}
+
+class _CourseQuizzesState extends State<_CourseQuizzes> {
+  List<QuizSummary>? _quizzes;
+  ApiException? _error;
+  bool _isLoading = false;
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final quizzes = await widget.api.listCourseQuizzes(widget.course.id);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _quizzes = quizzes;
+        _isLoading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = e;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _open(QuizSummary quiz) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizScreen(
+          courseId: quiz.courseId,
+          resourceId: quiz.resourceId,
+          title: quiz.title,
+        ),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    QuizProgressService.instance.refresh();
+    _load();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final result = widget.courseResult;
 
-    return Expanded(
-      child: Column(
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        title: Text(widget.course.title, style: theme.textTheme.titleMedium),
+        subtitle: Text(
+          result == null || result.quizzesAttempted == 0
+              ? 'Not started'
+              : '${result.quizzesPassed} of ${result.quizzesAvailable} passed · '
+                  '${result.understanding.label}',
+        ),
+        onExpansionChanged: (expanded) {
+          if (expanded && _quizzes == null && !_isLoading) {
+            _load();
+          }
+        },
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         children: [
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: theme.textTheme.bodySmall),
+          if (_error != null)
+            Column(
+              children: [
+                Text(_error!.message),
+                TextButton(onPressed: _load, child: const Text('Try again')),
+              ],
+            ),
+          if (result != null && result.weakTopics.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Revisit: ${result.weakTopics.join(', ')}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ),
+          for (final quiz in _quizzes ?? const <QuizSummary>[])
+            _QuizTile(quiz: quiz, onTap: () => _open(quiz)),
         ],
       ),
     );
@@ -201,58 +239,39 @@ class _SummaryStat extends StatelessWidget {
 }
 
 class _QuizTile extends StatelessWidget {
-  final _QuizEntry entry;
+  final QuizSummary quiz;
   final VoidCallback onTap;
 
-  const _QuizTile({
-    required this.entry,
-    required this.onTap,
-  });
+  const _QuizTile({required this.quiz, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final score = QuizProgressService.instance.scoreFor(entry.quiz.id);
-    final passed = score?.passed ?? false;
+    final stats = quiz.stats;
 
-    final subtitle = score == null
-        ? '${entry.quiz.questions.length} questions'
-        : 'Best ${score.bestCorrect}/${score.totalQuestions} '
-            '(${score.bestPercentage.round()}%) · '
-            '${score.attempts} ${score.attempts == 1 ? 'attempt' : 'attempts'}';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Semantics(
-        button: true,
-        label: '${entry.lesson.title} quiz. $subtitle. Status: ${passed ? "Passed" : "Not yet passed"}',
-        child: PressableScale(
-          onTap: onTap,
-          child: Card(
-            margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            child: ListTile(
-              onTap: onTap,
-              leading: CircleAvatar(
-                backgroundColor: passed
-                    ? Colors.green.shade600
-                    : theme.colorScheme.surfaceContainerHighest,
-                child: Icon(
-                  passed ? Icons.check : Icons.quiz_outlined,
-                  color: passed ? Colors.white : theme.colorScheme.onSurface,
-                  size: 20,
-                ),
-              ),
-              title: Text(
-                entry.lesson.title,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(subtitle),
-              trailing: const Icon(Icons.chevron_right),
-            ),
-          ),
-        ),
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        quiz.isCourseQuiz ? Icons.school_outlined : Icons.quiz_outlined,
       ),
+      title: Text(quiz.title),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: stats == null
+            ? Text('${quiz.questionCount} questions')
+            : Wrap(
+                spacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  UnderstandingBadge(
+                    understanding: stats.understanding,
+                    percent: stats.lastScore,
+                  ),
+                  Text('Best ${stats.bestScore.round()}%'),
+                ],
+              ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
     );
   }
 }
