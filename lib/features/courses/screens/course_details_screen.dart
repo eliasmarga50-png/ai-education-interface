@@ -9,6 +9,10 @@ import '../../../shared/widgets/app_empty_state.dart';
 import '../../../shared/widgets/app_error_state.dart';
 import '../../../shared/widgets/app_shimmer.dart';
 import '../../lessons/screens/learning_screen.dart';
+import '../../quizzes/models/quiz_performance.dart';
+import '../../quizzes/screens/quiz_screen.dart';
+import '../../quizzes/services/quiz_progress_service.dart';
+import '../../quizzes/widgets/understanding_badge.dart';
 import '../models/course_resource.dart';
 import '../services/course_repository.dart';
 import '../widgets/resource_tile.dart';
@@ -36,7 +40,8 @@ class CourseDetailsScreen extends StatefulWidget {
   State<CourseDetailsScreen> createState() => _CourseDetailsScreenState();
 }
 
-class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
+class _CourseDetailsScreenState extends State<CourseDetailsScreen>
+    with WidgetsBindingObserver {
   late final CourseRepository _repo =
       widget.repository ?? CourseRepository.instance;
 
@@ -46,10 +51,92 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
   bool _loading = true;
   ApiException? _error;
 
+  /// The resource the student just opened in the browser. When they come back
+  /// to the app, they are offered its quiz.
+  CourseResource? _pendingQuizFor;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    QuizProgressService.instance.refresh();
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final resource = _pendingQuizFor;
+    if (state != AppLifecycleState.resumed || resource == null || !mounted) {
+      return;
+    }
+    _pendingQuizFor = null;
+    _offerQuiz(resource);
+  }
+
+  Future<void> _offerQuiz(CourseResource resource) async {
+    final take = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Finished “${resource.title}”?',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Take a short quiz to see how well you understood it.',
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Take quiz'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Not now'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (take == true && mounted) {
+      await _openQuiz(resource: resource);
+    }
+  }
+
+  Future<void> _openQuiz({CourseResource? resource}) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizScreen(
+          courseId: _course.id,
+          resourceId: resource?.id,
+          title: resource?.title ?? _course.title,
+        ),
+      ),
+    );
+    QuizProgressService.instance.refresh();
   }
 
   Future<void> _load() async {
@@ -94,7 +181,11 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
       }
     }
 
-    if (opened || !mounted) return;
+    if (opened) {
+      _pendingQuizFor = resource;
+      return;
+    }
+    if (!mounted) return;
 
     await Clipboard.setData(ClipboardData(text: resource.url));
     if (!mounted) return;
@@ -167,12 +258,31 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen> {
                       ],
                       const _SectionTitle(title: 'Learning resources'),
                       const SizedBox(height: 12),
-                      _ResourcesSection(
-                        loading: _loading,
-                        error: _error,
-                        resources: _resources,
-                        onRetry: _retry,
-                        onOpen: _open,
+                      AnimatedBuilder(
+                        animation: QuizProgressService.instance,
+                        builder: (context, _) => _ResourcesSection(
+                          loading: _loading,
+                          error: _error,
+                          resources: _resources,
+                          onRetry: _retry,
+                          onOpen: _open,
+                          onTakeQuiz: (resource) =>
+                              _openQuiz(resource: resource),
+                          performanceFor: (resource) => QuizProgressService
+                              .instance
+                              .scopeFor(_course.id, resource.id),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      const _SectionTitle(title: 'Test your understanding'),
+                      const SizedBox(height: 12),
+                      AnimatedBuilder(
+                        animation: QuizProgressService.instance,
+                        builder: (context, _) => _CourseQuizCard(
+                          performance: QuizProgressService.instance
+                              .scopeFor(_course.id, null),
+                          onStart: _openQuiz,
+                        ),
                       ),
                       const SizedBox(height: 28),
                       const _SectionTitle(title: 'Course content'),
@@ -227,6 +337,8 @@ class _ResourcesSection extends StatelessWidget {
   final List<CourseResource> resources;
   final VoidCallback onRetry;
   final ValueChanged<CourseResource> onOpen;
+  final ValueChanged<CourseResource> onTakeQuiz;
+  final ScopePerformance? Function(CourseResource) performanceFor;
 
   const _ResourcesSection({
     required this.loading,
@@ -234,6 +346,8 @@ class _ResourcesSection extends StatelessWidget {
     required this.resources,
     required this.onRetry,
     required this.onOpen,
+    required this.onTakeQuiz,
+    required this.performanceFor,
   });
 
   @override
@@ -278,8 +392,60 @@ class _ResourcesSection extends StatelessWidget {
     return Column(
       children: [
         for (final resource in resources)
-          ResourceTile(resource: resource, onOpen: () => onOpen(resource)),
+          ResourceTile(
+            resource: resource,
+            onOpen: () => onOpen(resource),
+            onTakeQuiz: () => onTakeQuiz(resource),
+            performance: performanceFor(resource),
+          ),
       ],
+    );
+  }
+}
+
+/// Entry to the quiz about the whole course, with the student's result if any.
+class _CourseQuizCard extends StatelessWidget {
+  final ScopePerformance? performance;
+  final VoidCallback onStart;
+
+  const _CourseQuizCard({required this.performance, required this.onStart});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final result = performance;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Course quiz', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(
+              result == null
+                  ? 'Questions built from this course and its resources.'
+                  : 'Attempts: ${result.attempts} · Best: ${result.bestScore.round()}%',
+              style: theme.textTheme.bodyMedium,
+            ),
+            if (result != null) ...[
+              const SizedBox(height: 10),
+              UnderstandingBadge(
+                understanding: result.understanding,
+                percent: result.lastScore,
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onStart,
+              icon: const Icon(Icons.quiz_outlined),
+              label: Text(result == null ? 'Start quiz' : 'Retake quiz'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
