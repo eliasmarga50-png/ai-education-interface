@@ -96,7 +96,7 @@ class HttpQuizzesApi implements QuizzesApi {
           for (final entry in answers.entries)
             {'questionId': entry.key, 'selectedIndex': entry.value},
         ],
-        if (durationSeconds != null) 'durationSeconds': durationSeconds,
+        'durationSeconds': ?durationSeconds,
       },
     );
     return _parse(() => QuizResult.fromJson(_data(body)));
