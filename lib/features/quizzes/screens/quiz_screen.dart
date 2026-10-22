@@ -1,22 +1,38 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
+import '../../../shared/widgets/app_error_state.dart';
 import '../models/quiz.dart';
 import '../models/quiz_result.dart';
 import '../services/quiz_progress_service.dart';
+import '../services/quizzes_api.dart';
 import '../widgets/quiz_progress_indicator.dart';
 import '../widgets/quiz_question_card.dart';
 import 'quiz_result_screen.dart';
 
-/// Runs one quiz: question -> answer -> next ... -> submit -> results.
+/// Runs one quiz: load from the server -> question -> answer -> next ... ->
+/// submit -> results.
 ///
-/// Answers are kept here as a list with one slot per question, which makes
-/// Previous / Next simple and lets "Retry" reset by refilling the list.
+/// The quiz is about [courseId], or about one of its resources when
+/// [resourceId] is given. The server builds the questions from the course
+/// content, grades the answers and saves the score; this screen only shows
+/// the questions and sends the answers.
 class QuizScreen extends StatefulWidget {
-  final Quiz quiz;
+  final String courseId;
+  final String? resourceId;
+
+  /// Shown in the app bar while the quiz loads.
+  final String? title;
+
+  /// Injectable for tests; defaults to the real backend.
+  final QuizzesApi? api;
 
   const QuizScreen({
     super.key,
-    required this.quiz,
+    required this.courseId,
+    this.resourceId,
+    this.title,
+    this.api,
   });
 
   @override
@@ -24,12 +40,18 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
-  late List<String?> _answers;
+  late final QuizzesApi _api = widget.api ?? HttpQuizzesApi();
+
+  Quiz? _quiz;
+  ApiException? _error;
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+
+  List<int?> _answers = const [];
   int _currentIndex = 0;
+  Stopwatch _timer = Stopwatch();
 
-  Quiz get _quiz => widget.quiz;
-
-  int get _totalQuestions => _quiz.questions.length;
+  int get _totalQuestions => _quiz?.questions.length ?? 0;
 
   bool get _isLastQuestion => _currentIndex == _totalQuestions - 1;
 
@@ -40,12 +62,47 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
-    _answers = List<String?>.filled(_totalQuestions, null);
+    _load();
   }
 
-  void _selectAnswer(String answer) {
+  Future<void> _load() async {
     setState(() {
-      _answers[_currentIndex] = answer;
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final resourceId = widget.resourceId;
+      final quiz = resourceId == null
+          ? await _api.getCourseQuiz(widget.courseId)
+          : await _api.getResourceQuiz(widget.courseId, resourceId);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _quiz = quiz;
+        _answers = List<int?>.filled(quiz.questions.length, null);
+        _currentIndex = 0;
+        _isLoading = false;
+        _timer = Stopwatch()..start();
+      });
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = e;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectAnswer(int optionIndex) {
+    setState(() {
+      _answers[_currentIndex] = optionIndex;
     });
   }
 
@@ -69,46 +126,60 @@ class _QuizScreenState extends State<QuizScreen> {
     });
   }
 
-  QuizResult _buildResult() {
-    var correct = 0;
-
-    for (var i = 0; i < _totalQuestions; i++) {
-      if (_answers[i] == _quiz.questions[i].correctAnswer) {
-        correct++;
-      }
-    }
-
-    return QuizResult(
-      quizId: _quiz.id,
-      totalQuestions: _totalQuestions,
-      correctAnswers: correct,
-    );
-  }
-
   Future<void> _submit() async {
-    if (!_isCurrentAnswered) {
+    final quiz = _quiz;
+
+    if (quiz == null || _isSubmitting || _answers.any((a) => a == null)) {
       return;
     }
 
-    final result = _buildResult();
+    setState(() {
+      _isSubmitting = true;
+    });
 
-    // Saves the score, and marks the lesson complete when the quiz is passed.
-    await QuizProgressService.instance.recordResult(
-      result,
-      lessonId: _quiz.lessonId,
-    );
+    final QuizResult result;
+
+    try {
+      result = await _api.submitAttempt(
+        quiz.id,
+        answers: {
+          for (var i = 0; i < quiz.questions.length; i++)
+            quiz.questions[i].id: _answers[i]!,
+        },
+        durationSeconds: _timer.elapsed.inSeconds,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+      return;
+    }
+
+    // The score is saved on the server; fetch the updated totals for the app.
+    QuizProgressService.instance.refresh();
 
     if (!mounted) {
       return;
     }
 
+    setState(() {
+      _isSubmitting = false;
+    });
+
     final action = await Navigator.push<QuizResultAction>(
       context,
       MaterialPageRoute(
         builder: (_) => QuizResultScreen(
-          quiz: _quiz,
+          quizTitle: quiz.title,
           result: result,
-          answers: List<String?>.unmodifiable(_answers),
         ),
       ),
     );
@@ -119,13 +190,14 @@ class _QuizScreenState extends State<QuizScreen> {
 
     if (action == QuizResultAction.retry) {
       setState(() {
-        _answers = List<String?>.filled(_totalQuestions, null);
+        _answers = List<int?>.filled(quiz.questions.length, null);
         _currentIndex = 0;
+        _timer = Stopwatch()..start();
       });
       return;
     }
 
-    // "Back to Lesson", or the result screen was dismissed with Back.
+    // "Done", or the result screen was dismissed with Back.
     Navigator.pop(context);
   }
 
@@ -163,26 +235,50 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final quiz = _quiz;
+    final title = quiz?.title ?? widget.title ?? 'Quiz';
+
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: const Center(
+          child: Semantics(
+            label: 'Preparing your quiz',
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    if (_error != null || quiz == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: AppErrorState(
+          title: "Couldn't load the quiz",
+          message: _error?.message ?? 'Something went wrong.',
+          onRetry: _load,
+        ),
+      );
+    }
+
     if (_totalQuestions == 0) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text(_quiz.title),
-        ),
+        appBar: AppBar(title: Text(title)),
         body: const Center(
           child: Text('This quiz has no questions yet.'),
         ),
       );
     }
 
-    final question = _quiz.questions[_currentIndex];
+    final question = quiz.questions[_currentIndex];
 
     return PopScope(
       // With no answers yet there is nothing to lose, so Back just works.
-      canPop: !_hasAnswers,
+      canPop: !_hasAnswers || _isSubmitting,
       onPopInvokedWithResult: _handlePop,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_quiz.title),
+          title: Text(title),
         ),
         body: SafeArea(
           child: Column(
@@ -202,7 +298,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     child: QuizQuestionCard(
                       key: ValueKey(question.id),
                       question: question,
-                      selectedAnswer: _answers[_currentIndex],
+                      selectedIndex: _answers[_currentIndex],
                       onAnswerSelected: _selectAnswer,
                     ),
                   ),
@@ -214,7 +310,9 @@ class _QuizScreenState extends State<QuizScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _currentIndex > 0 ? _goToPrevious : null,
+                        onPressed: _currentIndex > 0 && !_isSubmitting
+                            ? _goToPrevious
+                            : null,
                         icon: const Icon(Icons.arrow_back),
                         label: const Text('Previous'),
                         style: OutlinedButton.styleFrom(
@@ -225,14 +323,22 @@ class _QuizScreenState extends State<QuizScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: !_isCurrentAnswered
+                        onPressed: !_isCurrentAnswered || _isSubmitting
                             ? null
                             : (_isLastQuestion ? _submit : _goToNext),
-                        icon: Icon(
-                          _isLastQuestion
-                              ? Icons.check
-                              : Icons.arrow_forward,
-                        ),
+                        icon: _isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                _isLastQuestion
+                                    ? Icons.check
+                                    : Icons.arrow_forward,
+                              ),
                         label: Text(_isLastQuestion ? 'Submit' : 'Next'),
                         style: FilledButton.styleFrom(
                           minimumSize: const Size(double.infinity, 52),
