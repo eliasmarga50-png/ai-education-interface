@@ -1,10 +1,3 @@
-
-
-
-
-import '../../quizzes/data/mock_quiz_data.dart';
-import '../../quizzes/models/quiz.dart';
-import '../../quizzes/models/quiz_question.dart';
 import '../data/tutor_data.dart';
 import '../models/chat_message.dart';
 import '../models/tutor_context.dart';
@@ -51,20 +44,13 @@ class MockTutorService implements TutorService {
     TutorContext lesson,
   ) {
     final text = question.toLowerCase();
-    final quiz = MockQuizData.quizForLesson(lesson.lessonId);
 
-    // A reply to a practice question comes first so "B" is graded, not
-    // treated as a new topic.
-    if (quiz != null) {
-      final graded = _gradePracticeAnswer(text, history, quiz);
-
-      if (graded != null) {
-        return graded;
-      }
-
-      if (_hasAny(text, ['quiz me', 'practice', 'test me', 'test my'])) {
-        return _practiceQuestion(history, quiz);
-      }
+    // Quizzes are built by the backend from the course resources, so the
+    // tutor points to them instead of asking its own questions.
+    if (_hasAny(text, ['quiz me', 'practice', 'test me', 'test my'])) {
+      return 'Quizzes are made from the course and its learning resources. '
+          'Open the course, use a resource, then tap “Take quiz” to see how '
+          'well you understood it. I can explain anything you miss.';
     }
 
     if (_hasAny(text, ['example', 'demo', 'sample'])) {
@@ -146,100 +132,4 @@ class MockTutorService implements TutorService {
         'lessons assume you are comfortable with it. A practice question '
         'is a good way to check your understanding.';
   }
-
-  String _practiceQuestion(List<ChatMessage> history, Quiz quiz) {
-    final alreadyAsked = history
-        .where((m) => m.isAi && m.text.contains('Practice question'))
-        .length;
-
-    final index = alreadyAsked % quiz.questions.length;
-    final question = quiz.questions[index];
-
-    final options = question.options
-        .asMap()
-        .entries
-        .map((e) => '${String.fromCharCode(65 + e.key)}) ${e.value}')
-        .join('\n');
-
-    return 'Practice question ${index + 1} of ${quiz.questions.length}:\n\n'
-        '${question.question}\n\n'
-        '$options\n\n'
-        'Reply with a letter (A–D), or ask me to show the answer.';
-  }
-
-  /// If the previous tutor message was a practice question and [text] looks
-  /// like an answer to it, returns feedback. Otherwise null.
-  String? _gradePracticeAnswer(
-    String text,
-    List<ChatMessage> history,
-    Quiz quiz,
-  ) {
-    ChatMessage? lastAi;
-
-    for (final message in history.reversed) {
-      if (message.isAi) {
-        lastAi = message;
-        break;
-      }
-    }
-
-    if (lastAi == null || !lastAi.text.contains('Practice question')) {
-      return null;
-    }
-
-    QuizQuestion? asked;
-
-    for (final question in quiz.questions) {
-      if (lastAi.text.contains(question.question)) {
-        asked = question;
-        break;
-      }
-    }
-
-    if (asked == null) {
-      return null;
-    }
-
-    final reply = text.trim();
-    String? chosen;
-
-    final letter = RegExp(r'^\(?([a-d])\)?[.)]?$').firstMatch(reply);
-
-    if (letter != null) {
-      final index = letter.group(1)!.codeUnitAt(0) - 97;
-
-      if (index < asked.options.length) {
-        chosen = asked.options[index];
-      }
-    } else {
-      for (final option in asked.options) {
-        if (reply == option.toLowerCase()) {
-          chosen = option;
-        }
-      }
-    }
-
-    if (chosen == null) {
-      if (_hasAny(reply, ['answer', 'reveal', 'solution', 'give up'])) {
-        return 'The correct answer is “${asked.correctAnswer}”.\n\n'
-            'Want another practice question?';
-      }
-
-      return null;
-    }
-
-    if (chosen == asked.correctAnswer) {
-      return 'Correct! ✅ “${asked.correctAnswer}” is right.\n\n'
-          'Want another practice question?';
-    }
-
-    return 'Not quite. You chose “$chosen”, but the correct answer is '
-        '“${asked.correctAnswer}”.\n\n'
-        'Want another practice question?';
-  }
 }
-
-
-
-
-
