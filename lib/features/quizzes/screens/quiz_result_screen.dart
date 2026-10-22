@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/pressable_scale.dart';
-import '../models/quiz.dart';
 import '../models/quiz_result.dart';
-import '../services/quiz_progress_service.dart';
 import '../widgets/quiz_option_tile.dart';
+import '../widgets/understanding_badge.dart';
 
 /// What the user chose to do on the result screen. [QuizScreen] receives this
 /// from Navigator.pop and decides what happens next, so this screen never
@@ -14,18 +13,17 @@ enum QuizResultAction {
   finish,
 }
 
+/// Shows the server's grading of one attempt: score, how well the student
+/// understood the material, what to revisit, and every answer with its
+/// explanation.
 class QuizResultScreen extends StatefulWidget {
-  final Quiz quiz;
+  final String quizTitle;
   final QuizResult result;
-
-  /// The user's answer for each question, in question order.
-  final List<String?> answers;
 
   const QuizResultScreen({
     super.key,
-    required this.quiz,
+    required this.quizTitle,
     required this.result,
-    required this.answers,
   });
 
   @override
@@ -37,52 +35,24 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
 
   QuizResult get _result => widget.result;
 
-  bool get _passed {
-    return _result.percentage >= QuizProgressService.passingPercentage;
-  }
+  String? get _comparison {
+    final previous = _result.previousScore;
 
-  String get _headline {
-    if (_result.isPerfect) {
-      return 'Perfect score! 🎉';
+    if (previous == null) {
+      return null;
     }
 
-    if (_result.percentage >= 80) {
-      return 'Great job!';
+    final change = (_result.percentage - previous).round();
+
+    if (change > 0) {
+      return 'Up $change points from your last attempt';
     }
 
-    if (_result.percentage >= 50) {
-      return 'Good effort!';
+    if (change < 0) {
+      return 'Down ${-change} points from your last attempt';
     }
 
-    return 'Keep practicing!';
-  }
-
-  String get _message {
-    if (_result.isPerfect) {
-      return 'You answered every question correctly.';
-    }
-
-    if (_result.percentage >= 80) {
-      return 'You clearly understand this lesson.';
-    }
-
-    if (_result.percentage >= 50) {
-      return 'Review the questions you missed and try again.';
-    }
-
-    return 'Re-read the lesson, then give the quiz another try.';
-  }
-
-  Color _scoreColor(BuildContext context) {
-    if (_result.percentage >= 80) {
-      return Colors.green.shade600;
-    }
-
-    if (_result.percentage >= 50) {
-      return Colors.orange.shade700;
-    }
-
-    return Theme.of(context).colorScheme.error;
+    return 'Same as your last attempt';
   }
 
   void _finish() {
@@ -93,10 +63,17 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     Navigator.pop(context, QuizResultAction.retry);
   }
 
+  void _toggleReview() {
+    setState(() {
+      _showReview = !_showReview;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scoreColor = _scoreColor(context);
+    final scoreColor = understandingColor(_result.understanding.level);
+    final comparison = _comparison;
 
     return Scaffold(
       appBar: AppBar(
@@ -107,179 +84,176 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 680),
             child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 130,
-                      height: 130,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CircularProgressIndicator(
-                            value: _result.percentage / 100,
-                            strokeWidth: 10,
-                            color: scoreColor,
-                            backgroundColor:
-                                scoreColor.withValues(alpha: 0.15),
-                          ),
-                          Center(
-                            child: Text(
-                              '${_result.percentage.round()}%',
-                              style:
-                                  theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
+              padding: const EdgeInsets.all(20),
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Text(
+                          widget.quizTitle,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: 130,
+                          height: 130,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              CircularProgressIndicator(
+                                value: _result.percentage / 100,
+                                strokeWidth: 10,
                                 color: scoreColor,
+                                backgroundColor:
+                                    scoreColor.withValues(alpha: 0.15),
                               ),
-                            ),
+                              Center(
+                                child: Text(
+                                  '${_result.percentage.round()}%',
+                                  style: theme.textTheme.headlineMedium
+                                      ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: scoreColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        UnderstandingBadge(
+                          understanding: _result.understanding,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _result.understanding.message,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _PassBadge(
+                          passed: _result.passed,
+                          passingPercentage: _result.passingPercentage,
+                        ),
+                        if (comparison != null) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            '$comparison · best ${_result.bestScore.round()}%',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall,
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      _headline,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _message,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _PassBadge(passed: _passed),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        _StatTile(
-                          label: 'Correct',
-                          value: '${_result.correctAnswers}',
-                          color: Colors.green.shade600,
-                        ),
-                        const SizedBox(width: 12),
-                        _StatTile(
-                          label: 'Incorrect',
-                          value: '${_result.incorrectAnswers}',
-                          color: theme.colorScheme.error,
-                        ),
-                        const SizedBox(width: 12),
-                        _StatTile(
-                          label: 'Total',
-                          value: '${_result.totalQuestions}',
-                          color: theme.colorScheme.primary,
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            _StatTile(
+                              label: 'Correct',
+                              value: '${_result.correctAnswers}',
+                              color: Colors.green.shade600,
+                            ),
+                            const SizedBox(width: 12),
+                            _StatTile(
+                              label: 'Incorrect',
+                              value: '${_result.incorrectAnswers}',
+                              color: theme.colorScheme.error,
+                            ),
+                            const SizedBox(width: 12),
+                            _StatTile(
+                              label: 'Total',
+                              value: '${_result.totalQuestions}',
+                              color: theme.colorScheme.primary,
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            PressableScale(
-              onTap: _retry,
-              child: SizedBox(
-                height: 54,
-                child: FilledButton.icon(
-                  onPressed: _retry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text(
-                    'Retry Quiz',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                if (_result.recommendation.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _NextStepCard(
+                    recommendation: _result.recommendation,
+                    weakTopics: _result.isPerfect ? const [] : _result.weakTopics,
+                  ),
+                ],
+                const SizedBox(height: 20),
+                PressableScale(
+                  onTap: _retry,
+                  child: SizedBox(
+                    height: 54,
+                    child: FilledButton.icon(
+                      onPressed: _retry,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text(
+                        'Retake Quiz',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            PressableScale(
-              onTap: () {
-                setState(() {
-                  _showReview = !_showReview;
-                });
-              },
-              child: SizedBox(
-                height: 54,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showReview = !_showReview;
-                    });
-                  },
-                  icon: Icon(
-                    _showReview
-                        ? Icons.visibility_off_outlined
-                        : Icons.fact_check_outlined,
-                  ),
-                  label: Text(
-                    _showReview ? 'Hide Review' : 'Review Answers',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                const SizedBox(height: 12),
+                PressableScale(
+                  onTap: _toggleReview,
+                  child: SizedBox(
+                    height: 54,
+                    child: OutlinedButton.icon(
+                      onPressed: _toggleReview,
+                      icon: Icon(
+                        _showReview
+                            ? Icons.visibility_off_outlined
+                            : Icons.fact_check_outlined,
+                      ),
+                      label: Text(
+                        _showReview ? 'Hide Review' : 'Review Answers',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            TextButton(
-              onPressed: _finish,
-              child: const Text('Back to Lesson'),
-            ),
-
-            if (_showReview) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Review',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              ...widget.quiz.questions.asMap().entries.map(
-                    (entry) => _ReviewCard(
-                      number: entry.key + 1,
-                      questionText: entry.value.question,
-                      options: entry.value.options,
-                      correctAnswer: entry.value.correctAnswer,
-                      selectedAnswer: entry.key < widget.answers.length
-                          ? widget.answers[entry.key]
-                          : null,
-                    ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: _finish,
+                  child: const Text('Done'),
+                ),
+                if (_showReview) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Review',
+                    style: theme.textTheme.titleLarge,
                   ),
-            ],
-
-            const SizedBox(height: 20),
-          ],
+                  const SizedBox(height: 12),
+                  for (final entry in _result.review.asMap().entries)
+                    _ReviewCard(number: entry.key + 1, item: entry.value),
+                ],
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
 
 class _PassBadge extends StatelessWidget {
   final bool passed;
+  final int passingPercentage;
 
   const _PassBadge({
     required this.passed,
+    required this.passingPercentage,
   });
 
   @override
@@ -288,8 +262,6 @@ class _PassBadge extends StatelessWidget {
 
     final color =
         passed ? Colors.green.shade600 : theme.colorScheme.onSurfaceVariant;
-
-    final needed = QuizProgressService.passingPercentage.round();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -308,9 +280,7 @@ class _PassBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              passed
-                  ? 'Passed · lesson marked complete'
-                  : 'Score $needed% or more to pass',
+              passed ? 'Passed' : 'Score $passingPercentage% or more to pass',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: color,
@@ -318,6 +288,49 @@ class _PassBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// What to do next, and which topics to revisit.
+class _NextStepCard extends StatelessWidget {
+  final String recommendation;
+  final List<String> weakTopics;
+
+  const _NextStepCard({
+    required this.recommendation,
+    required this.weakTopics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Your next step', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(recommendation, style: theme.textTheme.bodyMedium),
+            if (weakTopics.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text('Revisit', style: theme.textTheme.labelLarge),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  for (final topic in weakTopics) Chip(label: Text(topic)),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -368,27 +381,19 @@ class _StatTile extends StatelessWidget {
 
 class _ReviewCard extends StatelessWidget {
   final int number;
-  final String questionText;
-  final List<String> options;
-  final String correctAnswer;
-  final String? selectedAnswer;
+  final ReviewItem item;
 
   const _ReviewCard({
     required this.number,
-    required this.questionText,
-    required this.options,
-    required this.correctAnswer,
-    required this.selectedAnswer,
+    required this.item,
   });
 
-  bool get _isCorrect => selectedAnswer == correctAnswer;
-
-  QuizOptionState _stateFor(String option) {
-    if (option == correctAnswer) {
+  QuizOptionState _stateFor(int index) {
+    if (index == item.correctIndex) {
       return QuizOptionState.correct;
     }
 
-    if (option == selectedAnswer) {
+    if (index == item.selectedIndex) {
       return QuizOptionState.incorrect;
     }
 
@@ -399,7 +404,7 @@ class _ReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final statusColor =
-        _isCorrect ? Colors.green.shade600 : theme.colorScheme.error;
+        item.isCorrect ? Colors.green.shade600 : theme.colorScheme.error;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -411,13 +416,13 @@ class _ReviewCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  _isCorrect ? Icons.check_circle : Icons.cancel,
+                  item.isCorrect ? Icons.check_circle : Icons.cancel,
                   color: statusColor,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Question $number · ${_isCorrect ? 'Correct' : 'Incorrect'}',
+                  'Question $number · ${item.isCorrect ? 'Correct' : 'Incorrect'}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: statusColor,
@@ -427,23 +432,29 @@ class _ReviewCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              questionText,
+              item.prompt,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 height: 1.35,
               ),
             ),
             const SizedBox(height: 14),
-            ...options.asMap().entries.map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: QuizOptionTile(
-                      label: String.fromCharCode(65 + entry.key),
-                      text: entry.value,
-                      state: _stateFor(entry.value),
-                    ),
-                  ),
+            for (final entry in item.options.asMap().entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: QuizOptionTile(
+                  label: String.fromCharCode(65 + entry.key),
+                  text: entry.value,
+                  state: _stateFor(entry.key),
                 ),
+              ),
+            if (item.explanation.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                item.explanation,
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+              ),
+            ],
           ],
         ),
       ),
