@@ -241,10 +241,10 @@ class _QuizScreenState extends State<QuizScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: const Center(
+        body: Center(
           child: Semantics(
             label: 'Preparing your quiz',
-            child: CircularProgressIndicator(),
+            child: const CircularProgressIndicator(),
           ),
         ),
       );
