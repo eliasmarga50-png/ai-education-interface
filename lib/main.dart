@@ -7,7 +7,6 @@ import 'features/auth/screens/auth_gate.dart';
 import 'features/dashboard/services/learning_activity_service.dart';
 import 'features/lessons/services/learning_progress_service.dart';
 import 'features/profile/services/profile_controller.dart';
-import 'features/quizzes/services/quiz_progress_service.dart';
 import 'features/courses/services/course_repository.dart';
 
 Future<void> main() async {
@@ -19,9 +18,6 @@ Future<void> main() async {
   // Load saved lesson progress and study activity (streak, learning time).
   await LearningProgressService.instance.initialize();
   await LearningActivityService.instance.initialize();
-
-  // Load saved quiz scores before the first screen is built.
-  await QuizProgressService.instance.initialize();
 
   // Load saved AI Tutor conversations.
   await TutorController.instance.initialize();
