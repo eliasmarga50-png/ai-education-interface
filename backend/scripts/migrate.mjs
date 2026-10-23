@@ -18,11 +18,11 @@ try {
   await client.query(sql);
   const { rows } = await client.query(
     `SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name IN ('users', 'verification_codes', 'sessions')
+      WHERE table_schema = 'public' AND table_name IN ('users', 'verification_codes', 'sessions', 'user_avatars')
       ORDER BY table_name`,
   );
   console.log('Tables ready:', rows.map((r) => r.table_name).join(', '));
-  if (rows.length !== 3) process.exitCode = 1;
+  if (rows.length !== 4) process.exitCode = 1;
 } catch (err) {
   console.error('Migration failed:', err.message);
   process.exitCode = 1;
