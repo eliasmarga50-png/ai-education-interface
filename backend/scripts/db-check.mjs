@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { createPool } from '../src/db/database.js';
 import { AuthRepository } from '../src/modules/auth/auth.repository.js';
+import { ProfileRepository } from '../src/modules/profile/profile.repository.js';
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is not set. Add it to backend/.env first.');
@@ -12,6 +13,7 @@ if (!process.env.DATABASE_URL) {
 
 const pool = createPool(process.env.DATABASE_URL, { max: 2 });
 const repo = new AuthRepository(pool);
+const profiles = new ProfileRepository(pool);
 
 const userId = randomUUID();
 const email = `db-check-${Date.now()}@example.invalid`;
@@ -112,9 +114,47 @@ await step('updatePasswordAndRevokeSessions (transaction)', async () => {
   assert.ok(rows.every((r) => r.revoked_at === t + 5));
 });
 
+await step('profile: updateIdentity keeps what is null, mergePreferences merges', async () => {
+  await profiles.updateIdentity(userId, { name: 'Renamed', bio: 'Hi there', now: t });
+  await profiles.updateIdentity(userId, { name: null, bio: null, now: t });
+  await profiles.mergePreferences(userId, { dailyGoalMinutes: 30 }, t);
+  await profiles.mergePreferences(userId, { learningGoal: 'Prepare for exams' }, t);
+  const row = await profiles.getProfileRow(userId);
+  assert.equal(row.name, 'Renamed');
+  assert.equal(row.bio, 'Hi there');
+  assert.deepEqual(row.preferences, { dailyGoalMinutes: 30, learningGoal: 'Prepare for exams' });
+  assert.equal(row.avatar_updated_at, null);
+});
+
+await step('profile: avatar save (twice = replace), read back as bytes, delete', async () => {
+  await profiles.saveAvatar({ userId, contentType: 'image/png', data: Buffer.from([1, 2, 3]), now: t });
+  await profiles.saveAvatar({ userId, contentType: 'image/jpeg', data: Buffer.from([4, 5, 6, 7]), now: t + 1 });
+  const a = await profiles.getAvatar(userId);
+  assert.equal(a.content_type, 'image/jpeg');
+  assert.deepEqual([...a.data], [4, 5, 6, 7]);
+  assert.equal(a.updated_at, t + 1);
+  assert.equal((await profiles.getProfileRow(userId)).avatar_updated_at, t + 1);
+  await profiles.deleteAvatar(userId);
+  assert.equal(await profiles.getAvatar(userId), undefined);
+});
+
+await step('revokeAllSessions', async () => {
+  await repo.revokeAllSessions(userId, t + 9);
+  const { rows } = await pool.query('SELECT revoked_at FROM sessions WHERE user_id = $1', [userId]);
+  assert.ok(rows.every((r) => r.revoked_at != null));
+});
+
 await step('revokeSession / purgeExpired run without error', async () => {
   await repo.revokeSession(sessionId, t);
   await repo.purgeExpired(t + 365 * 24 * 60 * 60 * 1000);
+});
+
+await step('deleteUser cascades to the photo and sessions', async () => {
+  await profiles.saveAvatar({ userId, contentType: 'image/png', data: Buffer.from([1]), now: t });
+  await repo.deleteUser(userId);
+  assert.equal(await repo.findUserById(userId), undefined);
+  assert.equal(await profiles.getAvatar(userId), undefined);
+  assert.equal((await pool.query('SELECT 1 FROM sessions WHERE user_id = $1', [userId])).rowCount, 0);
 });
 
 await pool.query('DELETE FROM users WHERE id = $1', [userId]).catch(() => {});
