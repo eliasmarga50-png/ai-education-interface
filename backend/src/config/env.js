@@ -97,6 +97,13 @@ export function loadConfig(env = process.env) {
     throw new Error('CRON_SECRET must be at least 16 characters.');
   }
 
+  // Optional: the AI tutor proxy (POST /api/tutor/reply) talks to ../ai-service with a shared key.
+  // Without AI_INTERNAL_KEY the rest of the API works and the tutor route answers 503 AI_NOT_CONFIGURED.
+  const aiKey = env.AI_INTERNAL_KEY || '';
+  if (aiKey && aiKey.length < 32) {
+    throw new Error('AI_INTERNAL_KEY must be at least 32 characters (and equal to INTERNAL_API_KEY in ai-service/.env).');
+  }
+
   return Object.freeze({
     nodeEnv,
     isProd,
@@ -108,6 +115,12 @@ export function loadConfig(env = process.env) {
     corsOrigin: env.CORS_ORIGIN || '',
     cronSecret,
     mail: resolveMail(env, isProd),
+    ai: Object.freeze({
+      url: (env.AI_SERVICE_URL || 'http://127.0.0.1:4000').replace(/\/+$/, ''),
+      internalKey: aiKey,
+      // Slightly longer than the ai-service's own Gemini timeout (20 s), so its clear error wins.
+      timeoutMs: num(env.AI_TIMEOUT_MS, 25000),
+    }),
     auth: Object.freeze({
       codeSecret,
       codeTtlMs: 10 * 60 * 1000,

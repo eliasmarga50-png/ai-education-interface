@@ -4,6 +4,7 @@ import { createPool } from './db/database.js';
 import { AuthRepository } from './modules/auth/auth.repository.js';
 import { createAuthService } from './modules/auth/auth.service.js';
 import { createEmailChecker } from './modules/auth/emailCheck.js';
+import { createTutorService } from './modules/tutor/tutor.service.js';
 import { createMailer } from './services/mail/mailer.js';
 
 
@@ -23,7 +24,7 @@ try {
     emailChecker: createEmailChecker(),
     config,
   });
-  app = createApp({ authService, config });
+  app = createApp({ authService, tutorService: createTutorService({ config }), config });
 } catch (err) {
   console.error(`\nConfiguration error: ${err.message}\n`);
   if (!onVercel) process.exit(1);
