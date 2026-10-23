@@ -45,6 +45,18 @@ export function normalizeName(input) {
   return name;
 }
 
+/** Optional short text under the name. Max 160 characters, line breaks allowed, no control characters. */
+export function normalizeBio(input) {
+  if (typeof input !== 'string') throw AppError.validation({ bio: 'Bio must be text.' });
+  const bio = input
+    .normalize('NFC')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/\r\n?/g, '\n')
+    .trim();
+  if ([...bio].length > 160) throw AppError.validation({ bio: 'Bio must be 160 characters or fewer.' });
+  return bio;
+}
+
 export function validatePassword(password) {
   if (typeof password !== 'string' || password.length === 0) {
     throw AppError.validation({ password: 'Please enter a password.' });
