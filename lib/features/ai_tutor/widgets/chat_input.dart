@@ -1,8 +1,5 @@
-
-
-
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -42,6 +39,10 @@ class ChatInput extends StatelessWidget {
                     minLines: 1,
                     maxLines: 5,
                     textInputAction: TextInputAction.newline,
+                    // The backend accepts questions up to 2,000 characters.
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(2000),
+                    ],
                     decoration: InputDecoration(
                       hintText: 'Ask your AI Tutor...',
                       prefixIcon: const Icon(Icons.chat_bubble_outline),
