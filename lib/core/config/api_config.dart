@@ -42,4 +42,9 @@ class ApiConfig {
   }
 
   static const Duration timeout = Duration(seconds: 15);
+
+  /// AI Tutor answers go backend -> ai-service -> Gemini, which is slower than
+  /// a normal call. Longer than the backend's own limit (25 s) so its clear
+  /// error message reaches the app instead of a generic timeout.
+  static const Duration aiTimeout = Duration(seconds: 35);
 }
