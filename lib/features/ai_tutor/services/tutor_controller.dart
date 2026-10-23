@@ -9,6 +9,7 @@ import '../models/chat_conversation.dart';
 import '../models/chat_message.dart';
 import '../models/tutor_context.dart';
 import 'mock_tutor_service.dart';
+import 'remote_tutor_service.dart';
 import 'tutor_service.dart';
 
 /// Owns every AI Tutor conversation: history, sending, loading and error
@@ -21,8 +22,11 @@ class TutorController extends ChangeNotifier {
 
   static final TutorController instance = TutorController._();
 
-  /// Replace with an HTTP implementation when the Node.js API exists.
-  TutorService service = MockTutorService();
+  /// Gemini answers by default. Build with --dart-define=USE_MOCK_TUTOR=true
+  /// to use the canned answers instead (no backend or API key needed).
+  static const bool _useMock = bool.fromEnvironment('USE_MOCK_TUTOR');
+
+  TutorService service = _useMock ? MockTutorService() : RemoteTutorService();
 
   static const String _storageKey = 'tutor_conversations_v1';
   static const int _maxConversations = 30;
