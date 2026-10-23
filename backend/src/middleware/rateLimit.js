@@ -29,6 +29,16 @@ export const tutorLimiter = rateLimit({
   },
 });
 
+/** Profile reads and saves, per logged-in user. Generous: the app refreshes it when the screen opens. */
+export const profileLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user?.id ? String(req.user.id) : ipKeyGenerator(req.ip)),
+  handler,
+});
+
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 300,
