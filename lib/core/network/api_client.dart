@@ -29,8 +29,16 @@ class ApiClient {
     Map<String, dynamic>? body,
     bool auth = false,
     String? baseUrl,
+    Duration? timeout,
   }) {
-    return _send('POST', path, body: body, auth: auth, baseUrl: baseUrl);
+    return _send(
+      'POST',
+      path,
+      body: body,
+      auth: auth,
+      baseUrl: baseUrl,
+      timeout: timeout,
+    );
   }
 
   Future<Map<String, dynamic>> get(
@@ -50,6 +58,7 @@ class ApiClient {
     bool retried = false,
     String? baseUrl,
     Map<String, String>? query,
+    Duration? timeout, // Overrides ApiConfig.timeout (slow calls such as AI)
     String? tokenUsed, // Tracks which token was used for this specific attempt
   }) async {
         final base = baseUrl ?? ApiConfig.baseUrl;
@@ -89,7 +98,7 @@ class ApiClient {
       final request = method == 'GET'
           ? _http.get(uri, headers: headers)
           : _http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
-      response = await request.timeout(ApiConfig.timeout);
+      response = await request.timeout(timeout ?? ApiConfig.timeout);
     } on TimeoutException {
       throw const ApiException(
         code: 'NETWORK_ERROR',
@@ -152,7 +161,8 @@ class ApiClient {
           auth: auth,
           retried: true,
           baseUrl: baseUrl, 
-          query: query,    
+          query: query,
+          timeout: timeout,
           tokenUsed: TokenStorage.instance.accessToken,
         );
       }
