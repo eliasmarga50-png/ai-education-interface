@@ -43,9 +43,22 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
 
+-- Profile data (safe to re-run). Kept out of the auth queries on purpose: the photo lives in its
+-- own table so "SELECT * FROM users" (run on every request) never drags image bytes along.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio         TEXT  NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE TABLE IF NOT EXISTS user_avatars (
+  user_id      TEXT   PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+  content_type TEXT   NOT NULL,
+  data         BYTEA  NOT NULL,
+  updated_at   BIGINT NOT NULL
+);
+
 -- Supabase publishes every table in the "public" schema through its REST API.
 -- Turning row level security on with NO policies closes that door. The backend
 -- connects as the database owner, which is not affected. On Neon this is harmless.
 ALTER TABLE users              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_avatars        ENABLE ROW LEVEL SECURITY;
