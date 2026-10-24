@@ -9,6 +9,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../profile/services/profile_controller.dart';
 import '../models/auth_user.dart';
+import 'account_api.dart';
 import 'auth_api.dart';
 
 enum AuthStatus {
@@ -36,15 +37,20 @@ enum AuthStatus {
 class AuthController extends ChangeNotifier {
   AuthController._({
     AuthApi? api,
+    AccountApi? account,
     TokenStorage? tokens,
     ProfileController? profile,
     bool listenForExpiredSession = true,
   })  : _api = api ?? AuthApi.instance,
+        _account = account ?? AccountApi.instance,
         _tokens = tokens ?? TokenStorage.instance,
         _profile = profile ?? ProfileController.instance {
     if (listenForExpiredSession) {
       ApiClient.instance.onSessionExpired = _handleSessionExpired;
     }
+    // A name changed on the Profile screen (or on another device) must also
+    // update the account copy kept here.
+    _profile.onNameChanged = _applyProfileName;
   }
 
   /// Same behaviour with fake collaborators, for unit tests.
@@ -53,8 +59,10 @@ class AuthController extends ChangeNotifier {
     required AuthApi api,
     required TokenStorage tokens,
     required ProfileController profile,
+    AccountApi? account,
   }) : this._(
           api: api,
+          account: account,
           tokens: tokens,
           profile: profile,
           listenForExpiredSession: false,
@@ -75,6 +83,7 @@ class AuthController extends ChangeNotifier {
   static const _unexpected = 'Something went wrong. Please try again.';
 
   final AuthApi _api;
+  final AccountApi _account;
   final TokenStorage _tokens;
   final ProfileController _profile;
 
@@ -312,6 +321,74 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  // ---------------------------------------------------------------------
+  // Signed-in account actions (Profile > Privacy)
+  // ---------------------------------------------------------------------
+
+  /// Changes the password. The server signs the other devices out and sends
+  /// new tokens for this one. Returns false on failure; read [lastError].
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final session = await _account.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      await _tokens.save(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      );
+      _lastError = null;
+      return true;
+    } on ApiException catch (e) {
+      _lastError = e.message;
+      return false;
+    } catch (_) {
+      _lastError = _unexpected;
+      return false;
+    }
+  }
+
+  /// Ends every session of the account (all devices), then signs out here.
+  Future<bool> logOutEverywhere() async {
+    try {
+      await _account.logoutAll();
+    } on ApiException catch (e) {
+      _lastError = e.message;
+      return false;
+    } catch (_) {
+      _lastError = _unexpected;
+      return false;
+    }
+
+    await logOut();
+    return true;
+  }
+
+  /// Permanently deletes the account (the server asks for the password again),
+  /// removes its data from this device and signs out.
+  Future<bool> deleteAccount({required String password}) async {
+    final userId = _user?.id;
+
+    try {
+      await _account.deleteAccount(password: password);
+    } on ApiException catch (e) {
+      _lastError = e.message;
+      return false;
+    } catch (_) {
+      _lastError = _unexpected;
+      return false;
+    }
+
+    if (userId != null) {
+      await _profile.clearLocalData(userId);
+    }
+    await logOut();
+    return true;
+  }
+
   /// Leaves the verification screen (for example after a mistyped email) so
   /// the user can start over. The server removes abandoned unverified
   /// accounts by itself after a few days.
@@ -431,8 +508,30 @@ class AuthController extends ChangeNotifier {
     );
   }
 
-  /// The refresh token was rejected (expired, revoked, password was reset).
+  /// Keeps the cached account in step with the profile's name.
+  void _applyProfileName(String name) {
+    final current = _user;
+    if (current == null || current.name == name) {
+      return;
+    }
+
+    final updated = current.copyWith(name: name);
+    _user = updated;
+    unawaited(
+      SharedPreferences.getInstance().then((prefs) {
+        return _saveUser(prefs, _kUser, updated);
+      }),
+    );
+  }
+
+  /// The refresh token was rejected (expired, revoked, password was reset) or
+  /// there is no token at all.
   void _handleSessionExpired() {
+    // Already signed out (for example a request that finished after logout).
+    if (_status != AuthStatus.authenticated) {
+      return;
+    }
+
     _profile.unbind();
     _user = null;
     _status = AuthStatus.unauthenticated;
