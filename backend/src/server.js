@@ -4,6 +4,8 @@ import { createPool } from './db/database.js';
 import { AuthRepository } from './modules/auth/auth.repository.js';
 import { createAuthService } from './modules/auth/auth.service.js';
 import { createEmailChecker } from './modules/auth/emailCheck.js';
+import { ProfileRepository } from './modules/profile/profile.repository.js';
+import { createProfileService } from './modules/profile/profile.service.js';
 import { createTutorService } from './modules/tutor/tutor.service.js';
 import { createMailer } from './services/mail/mailer.js';
 
@@ -24,7 +26,12 @@ try {
     emailChecker: createEmailChecker(),
     config,
   });
-  app = createApp({ authService, tutorService: createTutorService({ config }), config });
+  app = createApp({
+    authService,
+    profileService: createProfileService({ repo: new ProfileRepository(pool) }),
+    tutorService: createTutorService({ config }),
+    config,
+  });
 } catch (err) {
   console.error(`\nConfiguration error: ${err.message}\n`);
   if (!onVercel) process.exit(1);

@@ -4,9 +4,11 @@ import helmet from 'helmet';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { generalLimiter } from './middleware/rateLimit.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
+import { createProfileRouter } from './modules/profile/profile.routes.js';
+import { createTutorRouter } from './modules/tutor/tutor.routes.js';
 import { safeEqual } from './utils/crypto.js';
 
-export function createApp({ authService, config }) {
+export function createApp({ authService, profileService, tutorService, config }) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -19,6 +21,10 @@ export function createApp({ authService, config }) {
     const origins = config.corsOrigin === '*' ? true : config.corsOrigin.split(',').map((o) => o.trim());
     app.use(cors({ origin: origins }));
   }
+  // Chat history is larger than a login body. Parsed first, so the 10kb parser below skips it.
+  app.use('/api/tutor', express.json({ limit: '64kb' }));
+  // A profile photo travels as base64 (max 300 KB decoded, about 400 KB encoded).
+  app.use('/api/profile/avatar', express.json({ limit: '600kb' }));
   app.use(express.json({ limit: '10kb' }));
   app.use(generalLimiter);
 
@@ -35,6 +41,8 @@ export function createApp({ authService, config }) {
     res.json({ ok: true });
   });
   app.use('/api/auth', createAuthRouter(authService));
+  if (profileService) app.use('/api/profile', createProfileRouter({ authService, profileService }));
+  if (tutorService) app.use('/api/tutor', createTutorRouter({ authService, tutorService }));
 
   app.use(notFound);
   app.use(errorHandler);
