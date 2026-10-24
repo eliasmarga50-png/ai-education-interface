@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../services/profile_controller.dart';
+import '../widgets/profile_feedback.dart';
 
 class PreferencesScreen extends StatefulWidget {
   const PreferencesScreen({super.key});
@@ -20,6 +21,7 @@ class _PreferencesScreenState
   late String _difficulty;
   late bool _aiAssistance;
   late bool _dailyReminders;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -33,21 +35,41 @@ class _PreferencesScreenState
     _dailyReminders = preferences.dailyReminders;
   }
 
-  void _savePreferences() {
-    _controller.updatePreferences(
+  Future<void> _savePreferences() async {
+    if (_isSaving) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final saved = await _controller.updatePreferences(
       learningGoal: _learningGoal,
       preferredDifficulty: _difficulty,
       aiAssistance: _aiAssistance,
       dailyReminders: _dailyReminders,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Preferences updated successfully.',
-        ),
-      ),
-    );
+    if (!mounted) {
+      return;
+    }
+
+    if (!saved) {
+      setState(() {
+        _isSaving = false;
+      });
+      showProfileSnack(
+        context,
+        _controller.lastError ??
+            'Your preferences could not be saved. Please try again.',
+        isError: true,
+        onRetry: _savePreferences,
+      );
+      return;
+    }
+
+    showProfileSnack(context, 'Preferences updated successfully.');
 
     Navigator.pop(context);
   }
@@ -59,7 +81,7 @@ class _PreferencesScreenState
         title: const Text('Preferences'),
         actions: [
           TextButton(
-            onPressed: _savePreferences,
+            onPressed: _isSaving ? null : _savePreferences,
             child: const Text('Save'),
           ),
         ],
@@ -249,12 +271,20 @@ class _PreferencesScreenState
           const SizedBox(height: 30),
 
           FilledButton.icon(
-            onPressed: _savePreferences,
-            icon: const Icon(
-              Icons.save_outlined,
-            ),
-            label: const Text(
-              'Save Preferences',
+            onPressed: _isSaving ? null : _savePreferences,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(
+                    Icons.save_outlined,
+                  ),
+            label: Text(
+              _isSaving ? 'Saving...' : 'Save Preferences',
             ),
             style: FilledButton.styleFrom(
               minimumSize: const Size(
