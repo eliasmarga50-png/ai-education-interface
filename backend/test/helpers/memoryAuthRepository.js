@@ -116,5 +116,16 @@ export class MemoryAuthRepository {
     if (s && !s.revoked_at) s.revoked_at = now;
   }
 
+  async revokeAllSessions(userId, now) {
+    for (const s of this.sessions.values()) if (s.user_id === userId && !s.revoked_at) s.revoked_at = now;
+  }
+
+  async deleteUser(id) {
+    this.users.delete(id);
+    this.codes = this.codes.filter((c) => c.user_id !== id);
+    for (const [sid, s] of this.sessions) if (s.user_id === id) this.sessions.delete(sid);
+    this.avatars?.delete(id); // set by MemoryProfileRepository, mirrors ON DELETE CASCADE
+  }
+
   async purgeExpired() {}
 }
