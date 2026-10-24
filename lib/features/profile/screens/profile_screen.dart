@@ -8,11 +8,21 @@ import '../../dashboard/services/learning_activity_service.dart';
 import '../../lessons/services/learning_progress_service.dart';
 import '../../quizzes/screens/quiz_list_screen.dart';
 import '../../quizzes/services/quiz_progress_service.dart';
+import '../../../shared/widgets/app_error_state.dart';
 import 'appearance_screen.dart';
+import 'certificates_screen.dart';
 import 'edit_profile_screen.dart';
+import 'help_support_screen.dart';
+import 'learning_goals_screen.dart';
+import 'my_courses_screen.dart';
+import 'notifications_screen.dart';
 import 'preferences_screen.dart';
+import 'privacy_screen.dart';
 import '../models/profile.dart';
 import '../services/profile_controller.dart';
+import '../services/profile_photo_picker.dart';
+import '../widgets/profile_avatar.dart';
+import '../widgets/profile_feedback.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -26,6 +36,29 @@ class ProfileScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => screen,
       ),
+    );
+  }
+
+  /// Pull to refresh: the profile and the quiz results come from the server.
+  Future<void> _refresh() async {
+    await Future.wait([
+      ProfileController.instance.refresh(),
+      QuizProgressService.instance.refresh(),
+    ]);
+  }
+
+  Future<void> _changePhoto(BuildContext context) async {
+    final message = await ProfilePhotoPicker.pickAndUpload();
+
+    if (message == null || !context.mounted) {
+      return;
+    }
+
+    showProfileSnack(
+      context,
+      message,
+      isError: true,
+      onRetry: () => _changePhoto(context),
     );
   }
 
@@ -66,8 +99,8 @@ class ProfileScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: ProfileController.instance,
       builder: (context, _) {
-        final profile =
-            ProfileController.instance.profile;
+        final controller = ProfileController.instance;
+        final profile = controller.profile;
 
         return Scaffold(
           appBar: AppBar(
@@ -90,7 +123,10 @@ class ProfileScreen extends StatelessWidget {
           body: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
-              child: ListView(
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
               20,
               10,
@@ -98,8 +134,26 @@ class ProfileScreen extends StatelessWidget {
               30,
             ),
             children: [
+              if (controller.isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: LinearProgressIndicator(),
+                ),
+
+              if (controller.loadError != null && !controller.isLoading)
+                AppErrorBanner(
+                  message: controller.hasSynced
+                      ? controller.loadError!
+                      : 'Showing your saved profile. '
+                          '${controller.loadError!}',
+                  actionLabel: 'Retry',
+                  onAction: controller.refresh,
+                ),
+
               _ProfileHeader(
                 profile: profile,
+                isUploadingPhoto: controller.isUpdatingAvatar,
+                onChangePhoto: () => _changePhoto(context),
                 onEditProfile: () {
                   _openScreen(
                     context,
@@ -142,7 +196,12 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Notifications',
                 subtitle:
                     'Manage your learning notifications',
-                onTap: () {},
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const NotificationsScreen(),
+                  );
+                },
               ),
 
               _ProfileMenuItem(
@@ -171,7 +230,12 @@ class ProfileScreen extends StatelessWidget {
                 title: 'My Courses',
                 subtitle:
                     'View your enrolled courses',
-                onTap: () {},
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const MyCoursesScreen(),
+                  );
+                },
               ),
 
               _ProfileMenuItem(
@@ -180,7 +244,12 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Certificates',
                 subtitle:
                     'View your earned certificates',
-                onTap: () {},
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const CertificatesScreen(),
+                  );
+                },
               ),
 
               _ProfileMenuItem(
@@ -188,7 +257,12 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Learning Goals',
                 subtitle:
                     'Set and track your learning goals',
-                onTap: () {},
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const LearningGoalsScreen(),
+                  );
+                },
               ),
 
               const SizedBox(height: 28),
@@ -217,7 +291,12 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Privacy',
                 subtitle:
                     'Manage your privacy settings',
-                onTap: () {},
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const PrivacyScreen(),
+                  );
+                },
               ),
 
               _ProfileMenuItem(
@@ -225,7 +304,12 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Help & Support',
                 subtitle:
                     'Get help with the platform',
-                onTap: () {},
+                onTap: () {
+                  _openScreen(
+                    context,
+                    const HelpSupportScreen(),
+                  );
+                },
               ),
 
               const SizedBox(height: 24),
@@ -264,6 +348,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ],
           ),
+              ),
         ),
       ),
     );
@@ -274,63 +359,84 @@ class ProfileScreen extends StatelessWidget {
 
 class _ProfileHeader extends StatelessWidget {
   final UserProfile profile;
+  final bool isUploadingPhoto;
+  final VoidCallback onChangePhoto;
   final VoidCallback onEditProfile;
 
   const _ProfileHeader({
     required this.profile,
+    required this.isUploadingPhoto,
+    required this.onChangePhoto,
     required this.onEditProfile,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasBio = profile.bio.trim().isNotEmpty;
+
     return Column(
       children: [
-        Stack(
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color:
-                    AppTheme.primaryColor.withValues(
-                  alpha: 0.1,
+        Semantics(
+          button: true,
+          label: 'Change profile photo',
+          child: GestureDetector(
+            onTap: isUploadingPhoto ? null : onChangePhoto,
+            child: Stack(
+              children: [
+                ProfileAvatar(
+                  imagePath: profile.avatarUrl,
+                  radius: 50,
+                  fallbackText: profile.name,
                 ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.person,
-                size: 52,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-            Positioned(
-              right: 0,
-              bottom: 2,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 3,
+                if (isUploadingPhoto)
+                  const Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black38,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  right: 0,
+                  bottom: 2,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 3,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_outlined,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                   ),
                 ),
-                child: const Icon(
-                  Icons.camera_alt_outlined,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
 
         const SizedBox(height: 14),
 
         Text(
-          profile.name,
+          profile.name.isNotEmpty ? profile.name : 'Your name',
           style: Theme.of(context)
               .textTheme
               .headlineSmall
@@ -349,14 +455,21 @@ class _ProfileHeader extends StatelessWidget {
 
         const SizedBox(height: 10),
 
-        Text(
-          profile.bio,
-          textAlign: TextAlign.center,
-          style:
-              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.4,
-                  ),
-        ),
+        if (hasBio)
+          Text(
+            profile.bio,
+            textAlign: TextAlign.center,
+            style:
+                Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      height: 1.4,
+                    ),
+          )
+        else
+          TextButton.icon(
+            onPressed: onEditProfile,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add a short bio'),
+          ),
 
         const SizedBox(height: 16),
 
