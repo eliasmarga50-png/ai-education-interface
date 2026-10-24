@@ -1,43 +1,31 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:path_provider/path_provider.dart';
-
-/// Copies the picked photo to `documents/avatars/userId_time.ext`.
-/// A new file name per photo makes Flutter's image cache show the new picture.
+// Web: there are no files. The photo is shown from a data: URI that lives in
+// memory for the session and is downloaded again on the next start.
 Future<String> saveAvatarFile({
   required String sourcePath,
   required String userId,
 }) async {
-  final documents = await getApplicationDocumentsDirectory();
-  final folder = Directory('${documents.path}${Platform.pathSeparator}avatars');
-  if (!await folder.exists()) {
-    await folder.create(recursive: true);
-  }
-
-  final dot = sourcePath.lastIndexOf('.');
-  final extension = dot > sourcePath.lastIndexOf(Platform.pathSeparator) &&
-          dot != -1 &&
-          sourcePath.length - dot <= 6
-      ? sourcePath.substring(dot).toLowerCase()
-      : '.jpg';
-
-  final safeId = userId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '');
-  final target = '${folder.path}${Platform.pathSeparator}'
-      '${safeId}_${DateTime.now().millisecondsSinceEpoch}$extension';
-
-  await File(sourcePath).copy(target);
-  return target;
+  return sourcePath;
 }
 
-Future<void> deleteAvatarFile(String path) async {
-  try {
-    final file = File(path);
-    if (await file.exists()) {
-      await file.delete();
-    }
-  } catch (_) {
-    // A leftover file is harmless.
-  }
+Future<String> saveAvatarBytes({
+  required Uint8List bytes,
+  required String userId,
+  required String mimeType,
+}) async {
+  return 'data:$mimeType;base64,${base64Encode(bytes)}';
 }
 
-Future<bool> avatarFileExists(String path) => File(path).exists();
+Future<Uint8List> readAvatarBytes(String path) async {
+  final comma = path.indexOf(',');
+  if (!path.startsWith('data:') || comma == -1) {
+    throw UnsupportedError('Only data: URIs can be read on web.');
+  }
+  return base64Decode(path.substring(comma + 1));
+}
+
+Future<void> deleteAvatarFile(String path) async {}
+
+Future<bool> avatarFileExists(String path) async => true;
