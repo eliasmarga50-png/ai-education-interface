@@ -10,5 +10,8 @@ export function createAuthController(auth) {
     forgotPassword: async (req, res) => res.json(await auth.forgotPassword(req.body)),
     resetPassword: async (req, res) => res.json(await auth.resetPassword(req.body)),
     me: async (req, res) => res.json({ user: req.user }),
+    changePassword: async (req, res) => res.json(await auth.changePassword(req.user.id, req.body)),
+    logoutAll: async (req, res) => res.json(await auth.logoutAll(req.user.id)),
+    deleteAccount: async (req, res) => res.json(await auth.deleteAccount(req.user.id, req.body)),
   };
 }

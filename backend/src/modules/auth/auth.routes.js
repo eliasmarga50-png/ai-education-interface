@@ -18,5 +18,10 @@ export function createAuthRouter(authService) {
   router.post('/logout', c.logout);
   router.get('/me', authenticate(authService), c.me);
 
+  // Signed-in account actions (Profile > Privacy).
+  router.post('/change-password', authenticate(authService), sensitiveLimiter, c.changePassword);
+  router.post('/logout-all', authenticate(authService), c.logoutAll);
+  router.post('/delete-account', authenticate(authService), sensitiveLimiter, c.deleteAccount);
+
   return router;
 }
