@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../core/validation/validators.dart';
 import '../services/profile_controller.dart';
+import '../services/profile_photo_picker.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/profile_feedback.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -16,8 +17,6 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState
     extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-
-  final ImagePicker _imagePicker = ImagePicker();
 
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
@@ -43,46 +42,50 @@ class _EditProfileScreenState
   }
 
   bool _isSaving = false;
-  bool _isPickingAvatar = false;
 
   Future<void> _pickAvatar() async {
-    if (_isPickingAvatar) {
+    if (_profileController.isUpdatingAvatar) {
       return;
     }
-    _isPickingAvatar = true;
 
-    try {
-      final image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1200,
-        maxHeight: 1200,
-      );
+    // Resizes the photo, uploads it to the account and keeps a copy here.
+    final message = await ProfilePhotoPicker.pickAndUpload();
 
-      if (image == null) {
-        return;
-      }
-
-      // The controller copies the photo to permanent storage (on phones the
-      // picked file is only a temporary cache file).
-      final saved = await _profileController.updateAvatar(image.path);
-
-      if (!mounted) {
-        return;
-      }
-
-      if (!saved) {
-        _showMessage('We could not save your photo. Please try again.');
-      }
-    } catch (_) {
-      if (mounted) {
-        _showMessage(
-          'We could not open your photos. Check the permission and try again.',
-        );
-      }
-    } finally {
-      _isPickingAvatar = false;
+    if (!mounted || message == null) {
+      return;
     }
+
+    showProfileSnack(
+      context,
+      message,
+      isError: true,
+      onRetry: _pickAvatar,
+    );
+  }
+
+  Future<void> _removeAvatar() async {
+    if (_profileController.isUpdatingAvatar) {
+      return;
+    }
+
+    final removed = await _profileController.removeAvatar();
+
+    if (!mounted) {
+      return;
+    }
+
+    if (removed) {
+      showProfileSnack(context, 'Profile photo removed.');
+      return;
+    }
+
+    showProfileSnack(
+      context,
+      _profileController.lastError ??
+          'We could not remove your photo. Please try again.',
+      isError: true,
+      onRetry: _removeAvatar,
+    );
   }
 
   Future<void> _saveProfile() async {
@@ -113,25 +116,19 @@ class _EditProfileScreenState
       setState(() {
         _isSaving = false;
       });
-      _showMessage('Your profile could not be saved. Please log in again.');
+      showProfileSnack(
+        context,
+        _profileController.lastError ??
+            'Your profile could not be saved. Please try again.',
+        isError: true,
+        onRetry: _saveProfile,
+      );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Profile updated successfully.',
-        ),
-      ),
-    );
+    showProfileSnack(context, 'Profile updated successfully.');
 
     Navigator.pop(context);
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -171,51 +168,91 @@ class _EditProfileScreenState
                 builder: (context, _) {
                   final profile =
                       _profileController.profile;
+                  final isUploading =
+                      _profileController.isUpdatingAvatar;
 
-                  return Stack(
-                    alignment: Alignment.bottomRight,
+                  return Column(
                     children: [
-                      ProfileAvatar(
-                        imagePath: profile.avatarUrl,
-                        radius: 58,
-                        fallbackText: profile.name,
-                      ),
-                      Material(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary,
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          onTap: _pickAvatar,
-                          customBorder:
-                              const CircleBorder(),
-                          child: const Padding(
-                            padding: EdgeInsets.all(10),
-                            child: Icon(
-                              Icons.camera_alt,
-                              size: 20,
-                              color: Colors.white,
+                      Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          ProfileAvatar(
+                            imagePath: profile.avatarUrl,
+                            radius: 58,
+                            fallbackText: profile.name,
+                          ),
+                          if (isUploading)
+                            const Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.black38,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child:
+                                        CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Material(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              onTap: isUploading
+                                  ? null
+                                  : _pickAvatar,
+                              customBorder:
+                                  const CircleBorder(),
+                              child: const Padding(
+                                padding: EdgeInsets.all(10),
+                                child: Icon(
+                                  Icons.camera_alt,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      TextButton.icon(
+                        onPressed:
+                            isUploading ? null : _pickAvatar,
+                        icon: const Icon(
+                          Icons.photo_library_outlined,
+                        ),
+                        label: const Text(
+                          'Change profile photo',
                         ),
                       ),
+
+                      if (profile.avatarUrl.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: isUploading
+                              ? null
+                              : _removeAvatar,
+                          icon: const Icon(
+                            Icons.delete_outline,
+                          ),
+                          label: const Text(
+                            'Remove photo',
+                          ),
+                        ),
                     ],
                   );
                 },
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            Center(
-              child: TextButton.icon(
-                onPressed: _pickAvatar,
-                icon: const Icon(
-                  Icons.photo_library_outlined,
-                ),
-                label: const Text(
-                  'Change profile photo',
-                ),
               ),
             ),
 
@@ -265,7 +302,7 @@ class _EditProfileScreenState
             TextFormField(
               controller: _bioController,
               maxLines: 4,
-              maxLength: 160,
+              maxLength: ProfileController.maxBioLength,
               decoration: const InputDecoration(
                 labelText: 'Bio',
                 hintText:
@@ -285,11 +322,19 @@ class _EditProfileScreenState
 
             FilledButton.icon(
               onPressed: _isSaving ? null : _saveProfile,
-              icon: const Icon(
-                Icons.save_outlined,
-              ),
-              label: const Text(
-                'Save Changes',
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.save_outlined,
+                    ),
+              label: Text(
+                _isSaving ? 'Saving...' : 'Save Changes',
               ),
               style: FilledButton.styleFrom(
                 minimumSize: const Size(
