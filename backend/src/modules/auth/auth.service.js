@@ -349,6 +349,77 @@ export function createAuthService({ repo, mailer, emailChecker, config, now = Da
     return { message: 'Password updated. Please log in.' };
   }
 
+  // ---- signed-in account actions (Profile > Privacy) -----------------------
+
+  /**
+   * Re-checks the password of an already signed-in user before a sensitive action. A stolen
+   * access token must not be able to guess the password, so a wrong answer counts as a failed
+   * login and locks the account with the same rules as /login.
+   */
+  async function confirmPassword(user, password) {
+    requireString(password, 'password', 'password');
+    const t = now();
+
+    if (user.locked_until && user.locked_until > t) {
+      const retryAfter = Math.ceil((user.locked_until - t) / 1000);
+      const mins = Math.ceil(retryAfter / 60);
+      throw new AppError(
+        429,
+        'ACCOUNT_LOCKED',
+        `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
+        { retryAfter },
+      );
+    }
+
+    if (!(await verifyPassword(password, user.password_hash))) {
+      const count = user.failed_login_count + 1;
+      if (count >= policy.maxFailedLogins) await repo.setLoginFailures(user.id, 0, t + policy.lockMs, t);
+      else await repo.setLoginFailures(user.id, count, null, t);
+      // 403 (not 401): the app treats a 401 as "access token expired" and tries to refresh it.
+      throw new AppError(403, 'INVALID_PASSWORD', 'That password is incorrect.');
+    }
+
+    if (user.failed_login_count > 0 || user.locked_until) await repo.setLoginFailures(user.id, 0, null, t);
+  }
+
+  async function signedInUser(userId) {
+    const user = await repo.findUserById(userId);
+    if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Please log in again.');
+    return user;
+  }
+
+  /** New password; every OTHER device is signed out, this one gets fresh tokens. */
+  async function changePassword(userId, { currentPassword, newPassword } = {}) {
+    validatePassword(newPassword);
+    const user = await signedInUser(userId);
+    await confirmPassword(user, currentPassword);
+
+    if (currentPassword === newPassword) {
+      throw AppError.validation({ newPassword: 'Choose a password different from your current one.' });
+    }
+
+    await repo.updatePasswordAndRevokeSessions({
+      userId,
+      passwordHash: await hashPassword(newPassword),
+      now: now(),
+    });
+    return startSession(await repo.findUserById(userId));
+  }
+
+  async function logoutAll(userId) {
+    await signedInUser(userId);
+    await repo.revokeAllSessions(userId, now());
+    return { ok: true };
+  }
+
+  /** Permanent. Needs the password again. */
+  async function deleteAccount(userId, { password } = {}) {
+    const user = await signedInUser(userId);
+    await confirmPassword(user, password);
+    await repo.deleteUser(userId);
+    return { ok: true };
+  }
+
   async function purgeExpired() {
     await repo.purgeExpired(now());
   }
@@ -363,6 +434,9 @@ export function createAuthService({ repo, mailer, emailChecker, config, now = Da
     authenticate,
     forgotPassword,
     resetPassword,
+    changePassword,
+    logoutAll,
+    deleteAccount,
     purgeExpired,
   };
 }
