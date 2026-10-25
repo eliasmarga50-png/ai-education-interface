@@ -13,8 +13,10 @@ import 'learning_activity_service.dart';
 class DashboardService {
   DashboardService._();
 
-  /// Minutes of study per day that fill the daily-goal ring.
-  static const int dailyGoalMinutes = 15;
+  /// Minutes of study per day that fill the daily-goal ring. The student sets
+  /// it in Profile > Learning Goals (saved on the account, default 15).
+  static int get dailyGoalMinutes =>
+      ProfileController.instance.preferences.dailyGoalMinutes;
 
   /// "1h 5m", "12m".
   static String formatDuration(int seconds) {
