@@ -47,4 +47,10 @@ class ApiConfig {
   /// a normal call. Longer than the backend's own limit (25 s) so its clear
   /// error message reaches the app instead of a generic timeout.
   static const Duration aiTimeout = Duration(seconds: 35);
+
+  /// Where Help & Support sends mail. Set per build, never in source control:
+  ///   flutter run --dart-define=SUPPORT_EMAIL=help@your-school.edu
+  /// Empty means "not configured": the screen then says so instead of
+  /// opening a mail app with no recipient.
+  static const String supportEmail = String.fromEnvironment('SUPPORT_EMAIL');
 }
