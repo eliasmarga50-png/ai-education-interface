@@ -100,6 +100,16 @@ export class AuthRepository {
     });
   }
 
+  /** Signs the account out everywhere (every device's session). */
+  async revokeAllSessions(userId, now) {
+    await this.pool.query('UPDATE sessions SET revoked_at = $1 WHERE user_id = $2 AND revoked_at IS NULL', [now, userId]);
+  }
+
+  /** Deletes the account. Sessions, codes and the profile photo go with it (ON DELETE CASCADE). */
+  async deleteUser(id) {
+    await this.pool.query('DELETE FROM users WHERE id = $1', [id]);
+  }
+
   // ---- verification codes --------------------------------------------------
 
   /** Newest code of this purpose (used or not), or undefined. */
