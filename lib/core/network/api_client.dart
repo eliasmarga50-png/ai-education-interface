@@ -50,6 +50,74 @@ class ApiClient {
     return _send('GET', path, auth: auth, baseUrl: baseUrl, query: query);
   }
 
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? body,
+    bool auth = false,
+    String? baseUrl,
+    Duration? timeout,
+  }) {
+    return _send(
+      'PATCH',
+      path,
+      body: body,
+      auth: auth,
+      baseUrl: baseUrl,
+      timeout: timeout,
+    );
+  }
+
+  Future<Map<String, dynamic>> put(
+    String path, {
+    Map<String, dynamic>? body,
+    bool auth = false,
+    String? baseUrl,
+    Duration? timeout,
+  }) {
+    return _send(
+      'PUT',
+      path,
+      body: body,
+      auth: auth,
+      baseUrl: baseUrl,
+      timeout: timeout,
+    );
+  }
+
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    bool auth = false,
+    String? baseUrl,
+  }) {
+    return _send('DELETE', path, auth: auth, baseUrl: baseUrl);
+  }
+
+  Future<http.Response> _dispatch(
+    String method,
+    Uri uri,
+    Map<String, String> headers,
+    Map<String, dynamic>? body,
+  ) {
+    final encoded = jsonEncode(body ?? {});
+
+    switch (method) {
+      case 'GET':
+        return _http.get(uri, headers: headers);
+      case 'PATCH':
+        return _http.patch(uri, headers: headers, body: encoded);
+      case 'PUT':
+        return _http.put(uri, headers: headers, body: encoded);
+      case 'DELETE':
+        return _http.delete(
+          uri,
+          headers: headers,
+          body: body == null ? null : encoded,
+        );
+      default:
+        return _http.post(uri, headers: headers, body: encoded);
+    }
+  }
+
   Future<Map<String, dynamic>> _send(
     String method,
     String path, {
@@ -95,9 +163,7 @@ class ApiClient {
 
     final http.Response response;
     try {
-      final request = method == 'GET'
-          ? _http.get(uri, headers: headers)
-          : _http.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+      final request = _dispatch(method, uri, headers, body);
       response = await request.timeout(timeout ?? ApiConfig.timeout);
     } on TimeoutException {
       throw const ApiException(
@@ -138,6 +204,8 @@ class ApiClient {
       // If we already retried with the freshest token and still got a 401, give up.
       final latestToken = TokenStorage.instance.accessToken;
       if (retried && currentToken == latestToken) {
+        // The server still refuses a freshly refreshed token: the session is gone.
+        onSessionExpired?.call();
         throw ApiException(
           code: code,
           message: error['message'] as String? ?? 'Session expired.',
@@ -186,6 +254,8 @@ class ApiClient {
   Future<bool> _doRefresh() async {
     final refreshToken = TokenStorage.instance.refreshToken;
     if (refreshToken == null) {
+      // Missing authentication: nothing can be refreshed, so the app signs out.
+      onSessionExpired?.call();
       return false;
     }
 
