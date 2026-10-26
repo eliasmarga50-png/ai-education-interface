@@ -1,41 +1,44 @@
 services:
-  # 1. Main Node.js API Backend
   - type: web
     name: main-backend
-    env: node
+    runtime: node
     rootDir: backend
-    buildCommand: npm install
-    startCommand: node backend/src/server.js
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
     envVars:
-      - key: NODE_ENV
-        value: production
+      - { key: NODE_ENV, value: production }
+      - { key: TRUST_PROXY, value: "1" }
+      - { key: DATABASE_URL, sync: false }
+      - { key: AUTH_CODE_SECRET, sync: false }
+      - { key: AI_INTERNAL_KEY, sync: false }
+      - { key: AI_SERVICE_URL, sync: false }   # https://<ai-service>.onrender.com
+      - { key: MAIL_MODE, sync: false }
+      - { key: MAIL_FROM, sync: false }
+      - { key: RESEND_API_KEY, sync: false }
 
-  # 2. NestJS Course Service
   - type: web
     name: course-service
-    env: node
+    runtime: node
     rootDir: course-service
-    buildCommand: npm install
-    startCommand: npm run start:prod
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
     envVars:
-      - key: NODE_ENV
-        value: production
+      - { key: NODE_ENV, value: production }
+      - { key: TRUST_PROXY, value: "1" }
+      - { key: DATABASE_URL, sync: false }
 
-  # 3. AI Service
   - type: web
     name: ai-service
-    env: node
+    runtime: node
     rootDir: ai-service
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
-      - key: NODE_ENV
-        value: production
-
-  # 4. Flutter Web Frontend (Optional Infrastructure)
-  - type: static
-    name: flutter-web-frontend
-    env: static
-    rootDir: .
-    buildCommand: flutter build web --release
-    publishDir: build/web
+      - { key: NODE_ENV, value: production }
+      - { key: NODE_VERSION, value: "22" }
+      - { key: HOST, value: "0.0.0.0" }
+      - { key: INTERNAL_API_KEY, sync: false }   # must equal backend AI_INTERNAL_KEY
+      - { key: GEMINI_API_KEY, sync: false }
