@@ -174,7 +174,10 @@ class _CoursesScreenState extends State<CoursesScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const _SectionTitle(title: 'Popular Courses'),
+                  const Expanded(
+                    child: _SectionTitle(title: 'Popular Courses'),
+                  ),
+                  const SizedBox(width: 12),
                   Text(
                     '${filtered.length} courses',
                     style: Theme.of(context).textTheme.bodySmall,
