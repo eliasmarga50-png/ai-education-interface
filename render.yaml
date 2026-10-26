@@ -1,0 +1,41 @@
+services:
+  # 1. Main Node.js API Backend
+  - type: web
+    name: main-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  # 2. NestJS Course Service
+  - type: web
+    name: course-service
+    env: node
+    rootDir: course-service
+    buildCommand: npm install
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  # 3. AI Service
+  - type: web
+    name: ai-service
+    env: node
+    rootDir: ai-service
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  # 4. Flutter Web Frontend (Optional Infrastructure)
+  - type: static
+    name: flutter-web-frontend
+    env: static
+    rootDir: .
+    buildCommand: flutter build web --release
+    publishDir: build/web
