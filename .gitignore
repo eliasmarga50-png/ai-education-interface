@@ -1,5 +1,6 @@
 # Miscellaneous
 *.class
+node_modules/
 *.log
 *.pyc
 *.swp
@@ -46,3 +47,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+node_modules/
+
+node_modules/
