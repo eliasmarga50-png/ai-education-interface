@@ -9,7 +9,6 @@ import { createProfileService } from './modules/profile/profile.service.js';
 import { createTutorService } from './modules/tutor/tutor.service.js';
 import { createMailer } from './services/mail/mailer.js';
 
-
 const onVercel = Boolean(process.env.VERCEL);
 
 let config;
@@ -32,6 +31,18 @@ try {
     tutorService: createTutorService({ config }),
     config,
   });
+
+  // --- ADDED ROOT ROUTE HERE ---
+  // Responds with API health status when someone opens the root URL in a browser
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      status: 'success',
+      message: 'AI Education API is running successfully!',
+      timestamp: new Date().toISOString(),
+    });
+  });
+  // -----------------------------
+
 } catch (err) {
   console.error(`\nConfiguration error: ${err.message}\n`);
   if (!onVercel) process.exit(1);
