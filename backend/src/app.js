@@ -30,6 +30,10 @@ export function createApp({ authService, profileService, tutorService, config })
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+  app.get('/', (req, res) =>
+    res.json({ status: 'success', message: 'AI Education API is running successfully!' }),
+  );
+
   // Called daily by Vercel Cron (vercel.json). Vercel sends "Authorization: Bearer <CRON_SECRET>".
   // Without CRON_SECRET the route does not exist.
   app.get('/api/internal/purge', async (req, res) => {

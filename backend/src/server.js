@@ -32,17 +32,6 @@ try {
     config,
   });
 
-  // --- ADDED ROOT ROUTE HERE ---
-  // Responds with API health status when someone opens the root URL in a browser
-  app.get('/', (req, res) => {
-    res.status(200).json({
-      status: 'success',
-      message: 'AI Education API is running successfully!',
-      timestamp: new Date().toISOString(),
-    });
-  });
-  // -----------------------------
-
 } catch (err) {
   console.error(`\nConfiguration error: ${err.message}\n`);
   if (!onVercel) process.exit(1);
