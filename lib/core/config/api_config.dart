@@ -19,13 +19,14 @@ class ApiConfig {
       return _override;
     }
 
-        // Physical phone or emulator, with: adb reverse tcp:3000 tcp:3000
+    // Physical phone or emulator, with: adb reverse tcp:3000 tcp:3000
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return 'http://127.0.0.1:3000';
     }
 
-    // iOS simulator, desktop and Flutter web.
-    return 'http://localhost:3000';
+    // Production Fallback: iOS simulator, desktop, and live Flutter web.
+    // Points directly to your core Node.js backend on Render.
+    return 'https://onrender.com';
   }
 
   /// The NestJS course-service (courses and learning resources).
@@ -34,11 +35,12 @@ class ApiConfig {
       return _coursesOverride;
     }
 
-        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return 'http://127.0.0.1:3001';
     }
 
-    return 'http://localhost:3001';
+    // Production Fallback: Points directly to your NestJS course microservice on Render.
+    return 'https://onrender.com';
   }
 
   static const Duration timeout = Duration(seconds: 15);
