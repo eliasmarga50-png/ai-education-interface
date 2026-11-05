@@ -13,7 +13,7 @@ services:
     env: node
     plan: free
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: cd ../backend && npm install
     startCommand: npm start
     buildFilter:
       paths:
@@ -25,7 +25,7 @@ services:
       - { key: DATABASE_URL, sync: false }
       - { key: AUTH_CODE_SECRET, sync: false }
       - { key: AI_INTERNAL_KEY, sync: false }
-      - { key: AI_SERVICE_URL, sync: false }   # https://<ai-service>.onrender.com
+      - { key: AI_SERVICE_URL, sync: false }
       - { key: MAIL_MODE, sync: false }
       - { key: MAIL_FROM, sync: false }
       - { key: RESEND_API_KEY, sync: false }
@@ -35,7 +35,7 @@ services:
     env: node
     plan: free
     rootDir: course-service
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: cd ../course-service && npm install --include=dev && npm run build
     startCommand: npm start
     buildFilter:
       paths:
@@ -51,7 +51,7 @@ services:
     env: node
     plan: free
     rootDir: ai-service
-    buildCommand: npm install
+    buildCommand: cd ../ai-service && npm install
     startCommand: npm start
     buildFilter:
       paths:
@@ -61,5 +61,5 @@ services:
       - { key: NODE_ENV, value: production }
       - { key: NODE_VERSION, value: "22" }
       - { key: HOST, value: "0.0.0.0" }
-      - { key: INTERNAL_API_KEY, sync: false }   # must equal backend AI_INTERNAL_KEY
+      - { key: INTERNAL_API_KEY, sync: false }
       - { key: GEMINI_API_KEY, sync: false }
