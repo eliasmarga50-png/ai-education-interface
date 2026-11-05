@@ -13,7 +13,7 @@ services:
     env: node
     plan: free
     rootDir: backend
-    buildCommand: npm install --no-audit --no-fund
+    buildCommand: npm install
     startCommand: npm start
     buildFilter:
       paths:
@@ -35,7 +35,7 @@ services:
     env: node
     plan: free
     rootDir: course-service
-    buildCommand: npm install --include=dev --no-audit --no-fund && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     buildFilter:
       paths:
@@ -51,7 +51,7 @@ services:
     env: node
     plan: free
     rootDir: ai-service
-    buildCommand: npm install --prefix ai-service --no-audit --no-fund
+    buildCommand: npm install
     startCommand: npm start
     buildFilter:
       paths:
