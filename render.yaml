@@ -13,7 +13,7 @@ services:
     env: node
     plan: free
     rootDir: backend
-    buildCommand: cd ../backend && npm install
+    buildCommand: npm install
     startCommand: npm start
     buildFilter:
       paths:
@@ -35,7 +35,7 @@ services:
     env: node
     plan: free
     rootDir: course-service
-    buildCommand: cd ../course-service && npm install --include=dev && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     buildFilter:
       paths:
@@ -51,7 +51,7 @@ services:
     env: node
     plan: free
     rootDir: ai-service
-    buildCommand: cd ../ai-service && npm install
+    buildCommand: npm install
     startCommand: npm start
     buildFilter:
       paths:
