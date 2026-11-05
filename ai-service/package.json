@@ -8,5 +8,9 @@
     "start": "node src/server.js",
     "dev": "node --watch --env-file=.env src/server.js",
     "test": "node --test"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "express": "^4.21.1"
   }
 }
