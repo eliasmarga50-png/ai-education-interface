@@ -51,7 +51,7 @@ services:
     env: node
     plan: free
     rootDir: ai-service
-    buildCommand: npm install --no-audit --no-fund
+    buildCommand: npm install --prefix ai-service --no-audit --no-fund
     startCommand: npm start
     buildFilter:
       paths:
