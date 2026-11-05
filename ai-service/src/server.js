@@ -33,15 +33,18 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: { code: 'SERVER_ERROR', message: 'Unexpected error.' } });
 });
 
-// Bound to localhost: only the backend on the same machine should reach it.
-const server = app.listen(config.port, '127.0.0.1');
+// CRUCIAL: Bind to process.env.PORT and use '0.0.0.0' for deployment environments
+const listenPort = process.env.PORT || config.port;
+const listenHost = process.env.PORT ? '0.0.0.0' : '127.0.0.1';
+
+const server = app.listen(listenPort, listenHost);
 server.once('listening', () =>
-  console.log(`AI service on http://127.0.0.1:${config.port} (model: ${config.gemini.model})`),
+  console.log(`AI service running on http://${listenHost}:${listenPort} (model: ${config.gemini.model})`),
 );
 server.once('error', (err) => {
   console.error(
     err.code === 'EADDRINUSE'
-      ? `\nPort ${config.port} is already in use by another program.\n`
+      ? `\nPort ${listenPort} is already in use by another program.\n`
       : `\nAI service failed to start: ${err.message}\n`,
   );
   process.exit(1);
