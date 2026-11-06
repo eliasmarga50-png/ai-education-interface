@@ -44,10 +44,24 @@ class LearningScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            leading: IconButton(
-              tooltip: 'Back',
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.arrow_back),
+            automaticallyImplyLeading: false,
+            leadingWidth: 90,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(
+                  Icons.arrow_back,
+                  size: 22,
+                ),
+                label: const Text('Back'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
             ),
             title: const Text('Learning'),
             actions: [
@@ -81,18 +95,12 @@ class LearningScreen extends StatelessWidget {
                     completedLessons: completedCount,
                     progress: progress,
                   ),
-
                   const SizedBox(height: 28),
-
                   Text(
                     'Course Modules',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall,
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
-
                   const SizedBox(height: 16),
-
                   ...modules.asMap().entries.map(
                     (entry) => _ModuleCard(
                       course: course,
@@ -100,7 +108,6 @@ class LearningScreen extends StatelessWidget {
                       module: entry.value,
                     ),
                   ),
-
                   const SizedBox(height: 30),
                 ],
               ),
@@ -143,9 +150,7 @@ class _CourseHeader extends StatelessWidget {
             color: Colors.white,
             size: 36,
           ),
-
           const SizedBox(height: 16),
-
           Text(
             course.title,
             style: const TextStyle(
@@ -154,9 +159,7 @@ class _CourseHeader extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-
           const SizedBox(height: 8),
-
           Text(
             '$totalLessons lessons • ${course.level}',
             style: const TextStyle(
@@ -164,17 +167,13 @@ class _CourseHeader extends StatelessWidget {
               fontSize: 14,
             ),
           ),
-
           const SizedBox(height: 20),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'Your progress',
-                style: TextStyle(
-                  color: Colors.white70,
-                ),
+                style: TextStyle(color: Colors.white70),
               ),
               Text(
                 '$completedLessons/$totalLessons',
@@ -185,9 +184,7 @@ class _CourseHeader extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 8),
-
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: LinearProgressIndicator(
@@ -195,14 +192,10 @@ class _CourseHeader extends StatelessWidget {
               minHeight: 8,
               backgroundColor: Colors.white24,
               valueColor:
-                  const AlwaysStoppedAnimation<Color>(
-                Colors.white,
-              ),
+                  const AlwaysStoppedAnimation<Color>(Colors.white),
             ),
           ),
-
           const SizedBox(height: 8),
-
           Text(
             '$percentage% completed',
             style: const TextStyle(
@@ -228,8 +221,7 @@ class _ModuleCard extends StatefulWidget {
   });
 
   @override
-  State<_ModuleCard> createState() =>
-      _ModuleCardState();
+  State<_ModuleCard> createState() => _ModuleCardState();
 }
 
 class _ModuleCardState extends State<_ModuleCard> {
@@ -242,9 +234,8 @@ class _ModuleCardState extends State<_ModuleCard> {
       builder: (context, child) {
         final module = widget.module;
 
-        final lessonIds = module.lessons
-            .map((lesson) => lesson.id)
-            .toList();
+        final lessonIds =
+            module.lessons.map((lesson) => lesson.id).toList();
 
         final completedLessons =
             LearningProgressService.instance.completedLessons(
@@ -274,9 +265,7 @@ class _ModuleCardState extends State<_ModuleCard> {
                       CircleAvatar(
                         radius: 24,
                         backgroundColor:
-                            AppTheme.primaryColor.withValues(
-                          alpha: 0.1,
-                        ),
+                            AppTheme.primaryColor.withValues(alpha: 0.1),
                         child: Text(
                           '${widget.moduleNumber}',
                           style: const TextStyle(
@@ -285,13 +274,10 @@ class _ModuleCardState extends State<_ModuleCard> {
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 14),
-
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               module.title,
@@ -299,21 +285,16 @@ class _ModuleCardState extends State<_ModuleCard> {
                                   .textTheme
                                   .titleMedium,
                             ),
-
                             const SizedBox(height: 4),
-
                             Text(
                               '$completedLessons/${module.lessons.length} lessons completed',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium,
                             ),
-
                             const SizedBox(height: 8),
-
                             ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(20),
                               child: LinearProgressIndicator(
                                 value: moduleProgress,
                                 minHeight: 5,
@@ -322,9 +303,7 @@ class _ModuleCardState extends State<_ModuleCard> {
                           ],
                         ),
                       ),
-
                       const SizedBox(width: 10),
-
                       Icon(
                         _expanded
                             ? Icons.keyboard_arrow_up
@@ -334,11 +313,9 @@ class _ModuleCardState extends State<_ModuleCard> {
                   ),
                 ),
               ),
-
               if (_expanded)
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Column(
                     children: module.lessons.asMap().entries.map(
                       (entry) {
@@ -376,23 +353,18 @@ class _LessonTile extends StatelessWidget {
       animation: LearningProgressService.instance,
       builder: (context, child) {
         final isCompleted =
-            LearningProgressService.instance.isCompleted(
-          lesson.id,
-        );
+            LearningProgressService.instance.isCompleted(lesson.id);
 
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 4,
             vertical: 4,
           ),
-
           leading: CircleAvatar(
             radius: 18,
             backgroundColor: isCompleted
                 ? AppTheme.primaryColor
-                : Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest,
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
             child: isCompleted
                 ? const Icon(
                     Icons.check,
@@ -407,32 +379,23 @@ class _LessonTile extends StatelessWidget {
                     ),
                   ),
           ),
-
           title: Text(
             lesson.title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-
           subtitle: Row(
             children: [
-              const Icon(
-                Icons.access_time,
-                size: 14,
-              ),
+              const Icon(Icons.access_time, size: 14),
               const SizedBox(width: 4),
               Text('${lesson.durationMinutes} min'),
             ],
           ),
-
           trailing: isCompleted
               ? const Icon(
                   Icons.check_circle,
                   color: AppTheme.primaryColor,
                 )
               : const Icon(Icons.chevron_right),
-
           onTap: () {
             Navigator.push(
               context,
