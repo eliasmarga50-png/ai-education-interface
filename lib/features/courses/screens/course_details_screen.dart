@@ -204,14 +204,28 @@ class _CourseDetailsScreenState extends State<CourseDetailsScreen>
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 260,
-            pinned: true,
-            leading: IconButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.arrow_back),
-            ),
+  expandedHeight: 260,
+  pinned: true,
+  automaticallyImplyLeading: false,
+  leadingWidth: 56,
+  leading: Padding(
+    padding: const EdgeInsets.only(left: 8),
+    child: Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: 'Back to courses',
+        onPressed: () {
+          Navigator.of(context).pop();
+        },
+        icon: const Icon(
+          Icons.arrow_back,
+          color: Colors.black,
+          size: 24,
+        ),
+      ),
+    ),
+  ),
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 course.title,
