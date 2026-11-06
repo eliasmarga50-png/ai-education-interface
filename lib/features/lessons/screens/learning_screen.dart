@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation/app_navigation.dart'; 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/course.dart';
 import '../../../shared/models/lesson.dart';
@@ -43,6 +44,19 @@ class LearningScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Learning'),
+            actions: [                                                 
+              TextButton.icon(                                         
+                onPressed: () => AppNavigation.backToCourses(context), 
+                icon: const Icon(Icons.menu_book_outlined, size: 20),  
+                label: const Text('Courses'),                          
+              ),                                                       
+              IconButton(                                              
+                tooltip: 'Home',                                       
+                onPressed: () => AppNavigation.goHome(context),        
+                icon: const Icon(Icons.home_outlined),                 
+              ),                                                       
+              const SizedBox(width: 4),                                
+            ],                                                         
           ),
           body: Center(
             child: ConstrainedBox(
