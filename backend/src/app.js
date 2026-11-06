@@ -17,10 +17,12 @@ export function createApp({ authService, profileService, tutorService, config })
   if (config.trustProxy > 0) app.set('trust proxy', config.trustProxy);
 
   app.use(helmet());
-  if (config.corsOrigin) {
-    const origins = config.corsOrigin === '*' ? true : config.corsOrigin.split(',').map((o) => o.trim());
-    app.use(cors({ origin: origins }));
-  }
+  
+  // CORS Configuration: Whitelist your frontend domain link
+  const allowedOrigin = config.corsOrigin || 'https://ai-education-frontend.onrender.com';
+  const origins = allowedOrigin === '*' ? true : allowedOrigin.split(',').map((o) => o.trim());
+  app.use(cors({ origin: origins, credentials: true }));
+
   // Chat history is larger than a login body. Parsed first, so the 10kb parser below skips it.
   app.use('/api/tutor', express.json({ limit: '64kb' }));
   // A profile photo travels as base64 (max 300 KB decoded, about 400 KB encoded).
@@ -30,8 +32,9 @@ export function createApp({ authService, profileService, tutorService, config })
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
+  // Explicit handling for the root index path to confirm live server connectivity status
   app.get('/', (req, res) =>
-    res.json({ status: 'success', message: 'AI Education API is running successfully!' }),
+    res.json({ status: 'success', message: 'AI Education API is running successfully!' })
   );
 
   // Called daily by Vercel Cron (vercel.json). Vercel sends "Authorization: Bearer <CRON_SECRET>".
