@@ -25,8 +25,8 @@ class ApiConfig {
     }
 
     // Production Fallback: iOS simulator, desktop, and live Flutter web.
-    // Points directly to your core Node.js backend on Render.
-    return 'https://onrender.com';
+    // Points directly to your specific Node.js core backend instance on Render.
+    return 'https://ai-education-backend-65oz.onrender.com';
   }
 
   /// The NestJS course-service (courses and learning resources).
@@ -39,8 +39,8 @@ class ApiConfig {
       return 'http://127.0.0.1:3001';
     }
 
-    // Production Fallback: Points directly to your NestJS course microservice on Render.
-    return 'https://onrender.com';
+    // Production Fallback: Points directly to your explicit NestJS course microservice on Render.
+    return 'https://course-service-qc83.onrender.com';
   }
 
   static const Duration timeout = Duration(seconds: 15);

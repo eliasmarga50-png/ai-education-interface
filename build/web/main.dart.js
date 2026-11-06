@@ -31874,8 +31874,8 @@ beL(a){return Math.sqrt(a)},
 bdL(a){return Math.exp(a)},
 aZF(a){return Math.log(a)},
 O6(a,b){return Math.pow(a,b)},
-b2E(){return"https://onrender.com"},
-qB(){return"https://onrender.com"},
+b2E(){return"https://ai-education-backend-65oz.onrender.com"},
+qB(){return"https://course-service-qc83.onrender.com"},
 aWP(a){var s=B.c.cA(a==null?"":a),r=A.c5("\\s+",!1),q=A.jE(s,r," ")
 s=q.length
 if(s===0)return"Please enter your name."
