@@ -15,9 +15,18 @@ async function bootstrap(): Promise<void> {
   app.useLogger([...LOG_LEVELS].slice(0, LOG_LEVELS.indexOf(config.logLevel) + 1));
   if (config.trustProxy > 0) app.set('trust proxy', config.trustProxy);
   app.use(helmet());
-  if (config.corsOrigins.length > 0) {
-    app.enableCors({ origin: config.corsOrigins.includes('*') ? true : config.corsOrigins });
-  }
+
+  // CORS Fix: Use environment configuration values, or fallback directly to your live frontend URL
+  const frontendOrigin = 'https://ai-education-frontend.onrender.com';
+  const origins = config.corsOrigins && config.corsOrigins.length > 0 
+    ? (config.corsOrigins.includes('*') ? true : config.corsOrigins)
+    : [frontendOrigin];
+
+  app.enableCors({ 
+    origin: origins,
+    credentials: true, // Crucial for session cookies / headers synchronization
+  });
+
   configureApp(app);
   app.enableShutdownHooks();
 
