@@ -16,12 +16,16 @@ export function createApp({ authService, profileService, tutorService, config })
   // per-IP rate limit, sees the real client instead of the proxy.
   if (config.trustProxy > 0) app.set('trust proxy', config.trustProxy);
 
-  app.use(helmet());
-  
-  // CORS Configuration: Whitelist your frontend domain link
+  // 1. Setup CORS configuration options fields
   const allowedOrigin = config.corsOrigin || 'https://ai-education-frontend.onrender.com';
   const origins = allowedOrigin === '*' ? true : allowedOrigin.split(',').map((o) => o.trim());
   app.use(cors({ origin: origins, credentials: true }));
+
+  // 2. CRUCIAL: Intercept and answer preflight OPTIONS calls immediately before Helmet filters them
+  app.options('*', cors({ origin: origins, credentials: true }));
+
+  // 3. Inject standard security headers shields
+  app.use(helmet());
 
   // Chat history is larger than a login body. Parsed first, so the 10kb parser below skips it.
   app.use('/api/tutor', express.json({ limit: '64kb' }));
