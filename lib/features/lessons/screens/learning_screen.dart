@@ -1,6 +1,7 @@
+
 import 'package:flutter/material.dart';
 
-import '../../../core/navigation/app_navigation.dart'; 
+import '../../../core/navigation/app_navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/course.dart';
 import '../../../shared/models/lesson.dart';
@@ -43,44 +44,56 @@ class LearningScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              tooltip: 'Back',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back),
+            ),
             title: const Text('Learning'),
-            actions: [                                                 
-              TextButton.icon(                                         
-                onPressed: () => AppNavigation.backToCourses(context), 
-                icon: const Icon(Icons.menu_book_outlined, size: 20),  
-                label: const Text('Courses'),                          
-              ),                                                       
-              IconButton(                                              
-                tooltip: 'Home',                                       
-                onPressed: () => AppNavigation.goHome(context),        
-                icon: const Icon(Icons.home_outlined),                 
-              ),                                                       
-              const SizedBox(width: 4),                                
-            ],                                                         
+            actions: [
+              TextButton.icon(
+                onPressed: () =>
+                    AppNavigation.backToCourses(context),
+                icon: const Icon(
+                  Icons.menu_book_outlined,
+                  size: 20,
+                ),
+                label: const Text('Courses'),
+              ),
+              IconButton(
+                tooltip: 'Home',
+                onPressed: () =>
+                    AppNavigation.goHome(context),
+                icon: const Icon(Icons.home_outlined),
+              ),
+              const SizedBox(width: 4),
+            ],
           ),
           body: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
               child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _CourseHeader(
-                course: course,
-                totalLessons: allLessons.length,
-                completedLessons: completedCount,
-                progress: progress,
-              ),
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _CourseHeader(
+                    course: course,
+                    totalLessons: allLessons.length,
+                    completedLessons: completedCount,
+                    progress: progress,
+                  ),
 
-              const SizedBox(height: 28),
+                  const SizedBox(height: 28),
 
-              Text(
-                'Course Modules',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
+                  Text(
+                    'Course Modules',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall,
+                  ),
 
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              ...modules.asMap().entries.map(
+                  ...modules.asMap().entries.map(
                     (entry) => _ModuleCard(
                       course: course,
                       moduleNumber: entry.key + 1,
@@ -88,12 +101,12 @@ class LearningScreen extends StatelessWidget {
                     ),
                   ),
 
-              const SizedBox(height: 30),
-            ],
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
-    );
+        );
       },
     );
   }
@@ -181,7 +194,8 @@ class _CourseHeader extends StatelessWidget {
               value: progress,
               minHeight: 8,
               backgroundColor: Colors.white24,
-              valueColor: const AlwaysStoppedAnimation<Color>(
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(
                 Colors.white,
               ),
             ),
@@ -214,7 +228,8 @@ class _ModuleCard extends StatefulWidget {
   });
 
   @override
-  State<_ModuleCard> createState() => _ModuleCardState();
+  State<_ModuleCard> createState() =>
+      _ModuleCardState();
 }
 
 class _ModuleCardState extends State<_ModuleCard> {
@@ -416,9 +431,7 @@ class _LessonTile extends StatelessWidget {
                   Icons.check_circle,
                   color: AppTheme.primaryColor,
                 )
-              : const Icon(
-                  Icons.chevron_right,
-                ),
+              : const Icon(Icons.chevron_right),
 
           onTap: () {
             Navigator.push(
