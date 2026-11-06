@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation/app_navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/models/course.dart';
 import '../../../shared/models/lesson.dart';
@@ -239,6 +240,11 @@ class _LessonContentScreenState extends State<LessonContentScreen>
           appBar: AppBar(
             title: const Text('Lesson'),
             actions: [
+              IconButton(                                        
+                tooltip: 'Home',                                 
+                onPressed: () => AppNavigation.goHome(context),  
+                icon: const Icon(Icons.home_outlined),           
+              ),                                                 
               IconButton(
                 tooltip: 'Ask AI Tutor',
                 onPressed: _openTutor,
